@@ -2,7 +2,7 @@
 
 This guide covers the current single-host Docker Compose deployment, plus requirements for a managed cloud installation. It does not provision infrastructure or describe a live Kilat Cloud service.
 
-> **Release status:** Compose configuration has been validated. The Linux image, container Chromium sandbox, S3 integration and backup recovery have not been exercised. Complete the acceptance checklist before using real customer data.
+> **Release status:** every change runs a Docker Compose check on Linux in CI (build, sign-up, publish, PDF inside the container, file round trip, refused oversized upload, restart, backup, destroy and restore, purge). The image has also run on ARM64 behind Caddy with Claude connected over OAuth. S3 storage and load have not been tested. Complete the acceptance checklist before using real customer data.
 
 ## 1. Prepare and start
 
@@ -11,11 +11,11 @@ This guide covers the current single-host Docker Compose deployment, plus requir
 - Linux host with Docker Engine, Docker Compose v2 and Git.
 - Persistent disk for PostgreSQL, uploaded files, Docker images and backups.
 - A hostname and HTTPS reverse proxy for remote users or hosted AI connectors.
-- A host/kernel configuration that lets non-root Chromium use its sandbox.
+- x86_64 or ARM64 (both are tested).
 
-No host Ruby, Node or PostgreSQL installation is needed. Ruby **3.3.13** and Chromium are installed in the image. Build on Linux or a remote builder, not the project's macOS development workstation.
+No host Ruby, Node or PostgreSQL installation is needed. Ruby **3.3.13** and Chromium are installed in the image, which builds on the host with `docker compose build`.
 
-There is no measured minimum host size yet. PDF requests launch Chromium synchronously in the web process; size for concurrent renders, not just idle Rails memory. Do not advertise capacity until load is measured.
+There is no measured minimum host size yet. A 2 vCPU / 2 GB ARM instance (AWS t4g.small) with 2 GB of swap built the image and served one user, but was not load-tested. PDF requests launch Chromium synchronously in the web process; size for concurrent renders, not just idle Rails memory.
 
 ### Install
 
@@ -37,18 +37,20 @@ Edit `.env`, using separate generated values:
 | `APP_HOST` | Hostname only, without scheme, path or port; `localhost` for local access |
 | `PORT` | Host loopback port; default `3000` |
 | `FORCE_SSL` | `false` for local HTTP; `true` behind correctly configured HTTPS proxy |
+| `ALLOW_SIGNUP` | `false` (default): only the first account can sign up. `true` lets anyone create an account with its own workspace |
+| `ARTIFACT_EXTERNAL_RESOURCES` | `true` (default): HTML artifacts may load libraries from cdnjs, jsdelivr, unpkg and the Tailwind CDN, fonts from Google Fonts and images over https, so visitors' browsers contact those hosts. `false` keeps artifacts to inline code and `data:` URIs |
 
 Never commit `.env`, credential keys, database dumps or uploaded files. Preserve `SECRET_KEY_BASE` across upgrades. Changing `POSTGRES_PASSWORD` in `.env` does not change an existing PostgreSQL role's password; rotate both deliberately during maintenance.
 
 ```sh
 docker compose config --quiet
-docker compose build web
+docker compose build
 docker compose up -d
 curl --fail http://localhost:3000/up
 docker compose ps
 ```
 
-Compose starts a private PostgreSQL 17 service, waits for its health check and starts Rails. The web entrypoint runs `db:prepare`, creating or migrating the configured database. Uploaded files and PostgreSQL data use separate named volumes.
+Compose starts a private PostgreSQL 17 service, waits for its health check, then starts Rails (`web`) and the `jobs` service that purges deleted artifacts. The web entrypoint runs `db:prepare`, creating or migrating the configured database. Uploaded files and PostgreSQL data use separate named volumes.
 
 Open <http://localhost:3000>, then create the first account. There is no seeded administrator or default password. Each account owns one workspace. After the first account, sign-up is closed unless you set `ALLOW_SIGNUP=true`. Create your account before you expose a new instance publicly: the first visitor to sign up becomes an owner.
 
@@ -77,6 +79,13 @@ Configure the proxy to:
 - Never cache authenticated pages, OAuth responses, MCP responses or public artifact pages. A public link follows the latest version, and unpublish depends on endpoints being rechecked.
 - Thruster in the image refuses request bodies over 22 MiB (`MAX_REQUEST_BODY`). Set the same or a lower limit at the proxy so oversized uploads stop there.
 - Set bounded request timeouts that permit expected PDF renders; apply rate and connection limits.
+
+With [Caddy](https://caddyserver.com) on the same host, one command gets a Let's Encrypt certificate and proxies with the right headers (point the hostname's DNS at the server first, and keep ports 80 and 443 open):
+
+```sh
+docker run -d --name caddy --restart unless-stopped --network host -v caddy_data:/data \
+  caddy:2 caddy reverse-proxy --from artifacts.example.com --to 127.0.0.1:3000
+```
 
 Restart after configuration changes:
 
@@ -152,7 +161,7 @@ Restore first into an isolated environment, never over the only copy of customer
 6. Verify owner login, original file bytes, version history, a private download and PDF export. Confirm unrelated users cannot access private artifacts.
 7. Record the restore result and recovery time. Only then consider replacing a damaged deployment.
 
-No restore drill has passed yet. Do not claim a recovery objective until this procedure has been exercised with real backups.
+CI runs a short version of this drill on every change (`script/smoke.sh`: dump and storage archive, `down -v`, restore into fresh volumes, check a public page and file bytes). Run the full procedure with your own backups before relying on it, and record your recovery time.
 
 ### Upgrade and rollback
 
@@ -174,13 +183,13 @@ Before using real customer data:
 - [ ] Two accounts cannot read or modify each other's artifacts, versions, files, kits or connections.
 - [ ] Markdown/HTML/rich-text/file create and edit work; stale browser edits are rejected.
 - [ ] A public link shows each new version at once; unpublish removes access for everyone but the owner.
-- [ ] An HTML artifact's scripts run, while `document.cookie` and `fetch('/artifacts')` inside it fail.
+- [ ] An HTML artifact's scripts run, while `document.cookie` and `fetch('/artifacts')` inside it fail, and opening `/p/<id>/frame` directly lands on `/p/<id>`.
 - [ ] Original file downloads match uploaded bytes after a container restart.
 - [ ] PDF renders inside the container with no artifact-controlled network access.
 - [ ] HTML/ZIP/source downloads contain the selected saved version.
 - [ ] OAuth registration, browser consent, PKCE, refresh and revocation work through the actual proxy.
 - [ ] Read/write/publish permissions remain distinct in a real MCP client.
-- [ ] At least two real AI clients read and revise the same artifact ID without a lost update.
+- [ ] Your AI clients connect and revise an artifact (Claude on claude.ai is tested; others are not yet).
 - [ ] Backup restoration passes in an isolated deployment.
 
 ### Operations

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Kilat Artifact">
+  <rect width="128" height="128" rx="28" fill="#ededeb"/>
+  <g transform="translate(16 16) scale(0.96)">
+    <path fill="#0b0b0a" d="M57.5 14L31 55H49L42.5 86L69 45H51Z"/>
+    <path fill="none" stroke="#0b0b0a" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" d="M10 31V10H31M69 10H90V31M90 69V90H69M31 90H10V69"/>
+  </g>
+</svg>
