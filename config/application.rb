@@ -38,5 +38,7 @@ module KilatArtifact
 
     # Don't generate system test files.
     config.generators.system_tests = nil
+    # Files are stored and served as uploaded; no image previews are made.
+    config.active_storage.variant_processor = :disabled
   end
 end

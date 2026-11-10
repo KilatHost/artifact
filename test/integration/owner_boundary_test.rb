@@ -111,6 +111,15 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
     assert_equal "document", result["kind"]
   end
 
+  test "MCP results carry the editor link, and the public link only while published" do
+    base = "https://artifact.example"
+    draft = ArtifactMcp.perform("get_artifact", @workspace, { id: @artifact.id }, base_url: base)
+    assert_equal "#{base}/artifacts/#{@artifact.id}", draft["url"]
+    assert_nil draft["public_url"]
+    published = ArtifactMcp.perform("publish_artifact", @workspace, { id: @artifact.id, version_id: @artifact.current_version_id }, base_url: base)
+    assert_equal "#{base}/p/#{@artifact.public_id}", published["public_url"]
+  end
+
   test "revoking an OAuth client revokes all its tokens" do
     app = Doorkeeper::Application.create!(name: "Client", redirect_uri: "https://client.example/cb", scopes: "read", confidential: false)
     tokens = 2.times.map { Doorkeeper::AccessToken.create!(application: app, resource_owner_id: @owner.id, scopes: "read", expires_in: 3600) }

@@ -29,7 +29,7 @@ class ArtifactMcp
           next MCP::Tool::Response.new([ { type: "text", text: "Permission denied: #{scope} scope required" } ], error: true)
         end
         begin
-          result = ArtifactMcp.perform(name, server_context[:workspace], arguments)
+          result = ArtifactMcp.perform(name, server_context[:workspace], arguments, base_url: server_context[:base_url])
           MCP::Tool::Response.new([ { type: "text", text: JSON.generate(result) } ])
         rescue ActiveRecord::RecordNotFound
           MCP::Tool::Response.new([ { type: "text", text: "Not found in this workspace" } ], error: true)
@@ -40,17 +40,17 @@ class ArtifactMcp
     end
   end.freeze
 
-  def self.perform(name, workspace, input)
+  def self.perform(name, workspace, input, base_url: nil)
     raise ActiveRecord::RecordNotFound unless workspace
     input = input.to_h.symbolize_keys.slice(*INPUT_KEYS.fetch(name))
     input[:tokens] = input[:tokens].transform_keys(&:to_s) if input[:tokens].is_a?(Hash)
     author = "MCP"
     case name
     when "list_artifacts"
-      workspace.artifacts.active.order(id: :desc).offset(input.fetch(:offset, 0)).limit(100).map { |artifact| summary(artifact) }
+      workspace.artifacts.active.order(id: :desc).offset(input.fetch(:offset, 0)).limit(100).map { |artifact| summary(artifact, base_url) }
     when "get_artifact"
       artifact = workspace.artifacts.active.find(input[:id])
-      summary(artifact).merge(version: version_data(artifact.current_version))
+      summary(artifact, base_url).merge(version: version_data(artifact.current_version))
     when "create_artifact"
       request_id = input.delete(:request_id)
       raise ArgumentError, "request_id must contain 1–128 characters" unless request_id.is_a?(String) && request_id.length.between?(1, 128)
@@ -62,7 +62,7 @@ class ArtifactMcp
           previous.result
         else
           workspace.design_kits.find(input[:design_kit_id]) if input[:design_kit_id]
-          result = summary(workspace.artifacts.create_draft!(**input, author: author))
+          result = summary(workspace.artifacts.create_draft!(**input, author: author), base_url)
           McpRequest.create!(workspace: workspace, request_id: request_id, fingerprint: fingerprint, result: result)
           result
         end
@@ -86,16 +86,19 @@ class ArtifactMcp
     when "publish_artifact"
       artifact = workspace.artifacts.active.find(input[:id])
       artifact.publish!(version_id: input[:version_id])
-      summary(artifact)
+      summary(artifact, base_url)
     when "unpublish_artifact"
       artifact = workspace.artifacts.active.find(input[:id])
       artifact.unpublish!
-      summary(artifact)
+      summary(artifact, base_url)
     end
   end
 
-  def self.summary(artifact)
-    artifact.as_json(only: %i[id title kind current_version_id published_version_id public_id design_kit_id updated_at])
+  # url opens the private editor (sign-in needed); public_url is set only while a version is published.
+  def self.summary(artifact, base_url = nil)
+    data = artifact.as_json(only: %i[id title kind current_version_id published_version_id public_id design_kit_id updated_at])
+    return data unless base_url
+    data.merge("url" => "#{base_url}/artifacts/#{artifact.id}", "public_url" => artifact.published_version_id && "#{base_url}/p/#{artifact.public_id}")
   end
 
   def self.version_data(version)
