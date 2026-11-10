@@ -75,7 +75,7 @@ Configure the proxy to:
 - Preserve `Host` and set trusted `X-Forwarded-Proto: https`.
 - Route `/mcp`, `/oauth/*`, `/.well-known/*`, `/p/*` and normal app paths without rewriting them.
 - Never cache authenticated pages, OAuth responses, MCP responses or public snapshots. Unpublish depends on endpoints being rechecked.
-- Enforce request-body limits compatible with the 20 MiB file cap plus multipart overhead. Reject oversized requests before Rails buffers them.
+- Thruster in the image refuses request bodies over 22 MiB (`MAX_REQUEST_BODY`). Set the same or a lower limit at the proxy so oversized uploads stop there.
 - Set bounded request timeouts that permit expected PDF renders; apply rate and connection limits.
 
 Restart after configuration changes:
@@ -188,13 +188,16 @@ Before using real customer data:
 docker compose ps
 docker compose logs --tail=100 web
 docker compose logs --tail=100 db
+docker compose logs --tail=100 jobs
 ```
+
+The `jobs` service purges artifacts deleted more than 7 days ago. If it stops, deleted artifacts stay in Deleted and keep using storage until it runs again.
 
 Logs can still contain operational metadata. Do not share raw logs before checking for secrets or private user content. Configure host/container log rotation; default unbounded Docker logs can exhaust disk.
 
 Monitor app errors and latency, database connections/storage, upload volume, backup age and restore results, Chromium crashes/render duration, memory pressure and outbound traffic. Alert on disk exhaustion before PostgreSQL or uploads fail.
 
-PDF export currently runs synchronously and is not queued, quota-controlled or cached. Set external request/concurrency limits before broad public access. Do not disable Chromium's sandbox with `--no-sandbox` to bypass host incompatibility; use a compatible host/kernel configuration and repeat the security checks.
+PDF export runs synchronously, one render per web process; a second request gets a 503 asking to try again. It is not queued, quota-controlled or cached. Set external request limits before broad public access. Do not disable Chromium's sandbox with `--no-sandbox` to bypass host incompatibility; use a compatible host/kernel configuration and repeat the security checks.
 
 ### Managed cloud readiness
 

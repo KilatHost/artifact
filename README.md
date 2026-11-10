@@ -16,12 +16,13 @@ A shared scratchpad for your AI agents. Create documents, HTML pages and files i
 | Version history | Saves create immutable versions; restore creates a new version |
 | Concurrent edits | Stale version writes fail instead of overwriting newer work |
 | Private and public | Drafts stay private; publishing selects a fixed public snapshot |
+| Delete and restore | Deleting ends public access at once; restore within 7 days, then it is purged with its versions and files |
 | Exports | PDF, HTML, source and ZIP; original attachment downloads for files |
 | Shared design kits | Workspace font and color tokens, captured in each saved version |
 | Agent connections | MCP over Streamable HTTP, OAuth and revocable personal tokens |
 | Workspace boundaries | Each account owns one workspace; private operations are workspace-scoped |
 
-The manager follows your system light/dark preference. Published artifacts use their captured design tokens instead of the manager theme.
+The interface follows the Kilat design system, with a light, dark or system theme switch in the top bar. Geist and Geist Mono ship inside the image, so pages load no third-party fonts or scripts. Published artifacts use their captured design tokens instead of the interface theme.
 
 ### What it does not do
 
@@ -52,6 +53,10 @@ curl --fail http://localhost:3000/up
 ```
 
 Open <http://localhost:3000> and create an account. There is no default account or seeded password. The port binds to the host's loopback interface, not the public network.
+
+Compose runs three services: `web` (Rails behind Thruster), `jobs` (purges artifacts deleted more than 7 days ago, hourly) and `db` (PostgreSQL). Without Compose, schedule `bin/rails artifacts:purge_archived`.
+
+**Forgotten password.** The self-hosted edition sends no email. An operator runs `docker compose exec web bin/rails users:reset_password EMAIL=person@example.com`, which prints a new random password once and revokes that account's OAuth connections.
 
 For remote access, TLS, storage, backups and upgrades, follow **[deploy.md](deploy.md)**. Build images on Linux or a remote builder; this project's development policy excludes local macOS image builds.
 
@@ -176,3 +181,7 @@ Report suspected security issues privately to repository maintainers; do not pub
 ## License
 
 [Apache License 2.0](LICENSE).
+
+**Trademarks.** The license covers the code, not the Kilat and Kilat Artifact names or the bolt marks (`public/icon.svg`, `public/icon.png`, `app/assets/images/kilat-artifact-mark.svg`). You may run unmodified copies under these names. If you distribute a modified version, use your own name and marks.
+
+Geist and Geist Mono are by Vercel and basement.studio, under the SIL Open Font License 1.1 (`app/assets/fonts/GEIST-OFL.txt`).

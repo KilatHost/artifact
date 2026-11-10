@@ -19,6 +19,6 @@ export default class extends Controller {
 
   rejectAttachment(event) {
     event.preventDefault()
-    this.statusTarget.textContent = "Embedded attachments are disabled. Use a file artifact instead."
+    this.statusTarget.textContent = "Files can't go inside a document. Make a File artifact instead."
   }
 }

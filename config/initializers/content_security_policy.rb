@@ -14,8 +14,9 @@ Rails.application.configure do
     policy.frame_ancestors :none
   end
 
-  # The import map is an inline script; it carries this nonce. The session id
-  # keeps it stable across Turbo visits within one session.
-  config.content_security_policy_nonce_generator = ->(request) { request.session.id.to_s }
+  # The import map is an inline script; it carries this nonce. Storing it in the
+  # session keeps it stable across Turbo visits (sign-in and sign-out reset it
+  # with full page loads).
+  config.content_security_policy_nonce_generator = ->(request) { request.session[:csp_nonce] ||= SecureRandom.base64(16) }
   config.content_security_policy_nonce_directives = %w[script-src]
 end

@@ -1,9 +1,13 @@
-<%= form_with model: kit, class: "stack" do |form| %>
-  <% if kit.errors.any? %><div role="alert"><%= kit.errors.full_messages.to_sentence %></div><% end %>
-  <div class="field"><%= form.label :name %><%= form.text_field :name, required: true, maxlength: 120 %></div>
+<%= form_with model: kit, class: "form-stack" do |form| %>
+  <% prefix = kit.persisted? ? "kit-#{kit.id}" : "kit-new" %>
+  <div class="field-group"><%= form.label :name, class: "field-label", for: "#{prefix}-name" %><%= form.text_field :name, required: true, maxlength: 120, class: "field", id: "#{prefix}-name" %></div>
   <%= form.fields_for :tokens do |tokens| %>
-    <div class="field"><%= tokens.label :font, "Font family" %><%= tokens.select :font, [["System sans", "system-ui"], ["Serif", "serif"], ["Monospace", "monospace"]], selected: kit.tokens&.fetch("font", nil) || "system-ui" %></div>
-    <div class="color-grid"><% { "background" => "#ffffff", "foreground" => "#171717", "accent" => "#525252" }.each do |key, fallback| %><div class="field"><%= tokens.label key %><%= tokens.color_field key, value: kit.tokens&.fetch(key, nil) || fallback %></div><% end %></div>
+    <div class="field-group"><%= tokens.label :font, "Font", class: "field-label", for: "#{prefix}-font" %><%= tokens.select :font, [ [ "System sans", "system-ui" ], [ "Serif", "serif" ], [ "Monospace", "monospace" ] ], { selected: kit.tokens&.fetch("font", nil) || "system-ui" }, class: "field", id: "#{prefix}-font" %></div>
+    <div class="color-grid">
+      <% { "background" => "#ffffff", "foreground" => "#171717", "accent" => "#171717" }.each do |key, fallback| %>
+        <div class="field-group"><%= tokens.label key, key.capitalize, class: "field-label", for: "#{prefix}-#{key}" %><%= tokens.color_field key, value: kit.tokens&.fetch(key, nil) || fallback, class: "field", id: "#{prefix}-#{key}" %></div>
+      <% end %>
+    </div>
   <% end %>
-  <%= form.submit kit.persisted? ? "Save kit version" : "Create design kit", class: "button secondary" %>
+  <div class="form-actions"><%= form.submit kit.persisted? ? "Save kit" : "Create kit", class: "button-secondary" %></div>
 <% end %>

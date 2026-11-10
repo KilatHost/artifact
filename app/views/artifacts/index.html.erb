@@ -1,14 +1,51 @@
-<% content_for :title, "Artifacts · Kilat" %>
-<div class="page-heading"><div><p class="eyebrow">Workspace</p><h1>Artifacts</h1><p class="muted">Documents, HTML, and files. Drafts stay private until you publish.</p></div><%= link_to "New artifact", new_artifact_path, class: "button" %></div>
+<% content_for :title, "Artifacts · Kilat Artifact" %>
+<div class="page-header">
+  <div>
+    <h1 class="page-heading">Artifacts</h1>
+    <p class="card-desc">Documents, HTML and files you and your agents share. Drafts stay private until you publish.</p>
+  </div>
+  <%= link_to new_artifact_path, class: "button-primary" do %><%= icon("plus") %>New artifact<% end %>
+</div>
+
 <% if @artifacts.any? %>
-  <div class="artifact-list">
+  <div class="card">
     <% @artifacts.each do |artifact| %>
-      <%= link_to artifact_path(artifact), class: "artifact-row" do %>
-        <div><span class="eyebrow"><%= artifact.kind %></span><h2><%= artifact.title %></h2><p class="muted">Updated <%= time_ago_in_words(artifact.updated_at) %> ago</p></div>
-        <span class="badge"><%= artifact.published_version_id ? "Published snapshot" : "Private draft" %></span>
+      <%= link_to artifact_path(artifact), class: "row-link" do %>
+        <div>
+          <div class="row-title"><%= artifact.title %></div>
+          <div class="row-meta"><span><%= kind_label(artifact.kind) %></span><span>Version <%= artifact.current_version&.number %></span><span>Updated <%= time_ago_in_words(artifact.updated_at) %> ago</span></div>
+        </div>
+        <% if artifact.published_version_id %>
+          <span class="status-badge"><span class="status-dot" data-state="published"></span>Published</span>
+        <% else %>
+          <span class="status-badge"><span class="status-dot"></span>Private</span>
+        <% end %>
       <% end %>
     <% end %>
   </div>
 <% else %>
-  <section class="empty-state"><h2>A clear place to start.</h2><p>Create a document, edit HTML, or keep a file with its version history.</p><%= link_to "Create your first artifact", new_artifact_path, class: "button secondary" %></section>
+  <section class="empty-state">
+    <h2 class="card-title">No artifacts yet</h2>
+    <p class="card-desc">Write a document, paste HTML or upload a file. Every save keeps a version you can go back to.</p>
+    <%= link_to "Create your first artifact", new_artifact_path, class: "button-secondary" %>
+  </section>
+<% end %>
+
+<% if @archived.any? %>
+  <section class="section-space">
+    <h2 class="section-label">Deleted</h2>
+    <div class="card">
+      <ul class="card-list">
+        <% @archived.each do |artifact| %>
+          <li>
+            <div>
+              <div class="row-title"><%= artifact.title %></div>
+              <div class="row-meta"><span>Removed for good in <%= distance_of_time_in_words(Time.current, artifact.purge_at) %></span></div>
+            </div>
+            <%= button_to "Restore", unarchive_artifact_path(artifact), class: "button-secondary button-sm" %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  </section>
 <% end %>
