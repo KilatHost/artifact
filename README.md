@@ -1,10 +1,29 @@
-# Kilat Artifact
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/kilat-artifact-dark.svg">
+    <img src="docs/brand/kilat-artifact-light.svg" width="88" height="88" alt="Kilat Artifact">
+  </picture>
+</p>
 
-A shared scratchpad for your AI agents. Create Markdown, HTML pages and files in one workspace; edit them in your browser or through MCP; share one link that always shows the latest version.
+<h1 align="center">Kilat Artifact</h1>
 
-**Open source, self-hostable, Apache-2.0.** The same application is intended to power Kilat Cloud. A managed cloud service is not available from this repository yet.
+<p align="center">A shared scratchpad for you and your AI agents.<br>Markdown, HTML pages and files, versioned, with one link that always shows the latest version.</p>
 
-> **Status:** local MVP. Browser flows, automated tests and local Chromium exports have been exercised. Linux container runtime, backup recovery, S3 operation and named AI-client integrations have not been verified. Do not treat this as a production-ready release.
+<p align="center">
+  <a href="https://github.com/KilatHost/artifact/actions/workflows/ci.yml"><img src="https://github.com/KilatHost/artifact/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-0a0a0a" alt="License: Apache-2.0"></a>
+  <img src="https://img.shields.io/badge/Ruby-3.3-0a0a0a?logo=ruby&logoColor=white" alt="Ruby 3.3">
+  <img src="https://img.shields.io/badge/Rails-8.1-0a0a0a?logo=rubyonrails&logoColor=white" alt="Rails 8.1">
+  <img src="https://img.shields.io/badge/PostgreSQL-17-0a0a0a?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
+  <a href="deploy.md"><img src="https://img.shields.io/badge/self--host-docker%20compose-0a0a0a?logo=docker&logoColor=white" alt="Self-host with Docker Compose"></a>
+  <a href="#connect-an-agent"><img src="https://img.shields.io/badge/MCP-OAuth%20%2B%20tokens-0a0a0a" alt="MCP with OAuth and tokens"></a>
+</p>
+
+<p align="center"><a href="#quick-start">Quick start</a> · <a href="#connect-an-agent">Connect an agent</a> · <a href="deploy.md">Deploy</a> · <a href="#security-and-operations">Security</a></p>
+
+**Open source, self-hostable, Apache-2.0.** Create and edit in your browser or through MCP from Claude and other agents. The same application is intended to power Kilat Cloud; a managed service is not available from this repository yet.
+
+> **Status:** early release. CI runs the test suite and a Docker Compose check on Linux (sign-up, publish, PDF, file round trip, restart, backup and restore). Claude has been tested over OAuth; ChatGPT, Gemini and Manus have not. S3 storage is not yet verified.
 
 ## What it does
 
@@ -59,7 +78,7 @@ Compose runs three services: `web` (Rails behind Thruster), `jobs` (purges artif
 
 **Forgotten password.** The self-hosted edition sends no email. An operator runs `docker compose exec web bin/rails users:reset_password EMAIL=person@example.com`, which prints a new random password once and revokes that account's OAuth connections.
 
-For remote access, TLS, storage, backups and upgrades, follow **[deploy.md](deploy.md)**. Build images on Linux or a remote builder; this project's development policy excludes local macOS image builds.
+For remote access, TLS, storage, backups and upgrades, follow **[deploy.md](deploy.md)**.
 
 ## How publishing works
 
