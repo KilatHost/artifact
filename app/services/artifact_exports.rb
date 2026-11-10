@@ -13,8 +13,11 @@ class ArtifactExports
     end
   end
 
+  # Chromium's own sandbox cannot start under Docker's default seccomp profile, so it is off.
+  # The render is still contained: scripts are disabled, every network request is aborted,
+  # and the container runs as a non-root user.
   def self.render_pdf(version)
-    browser = Ferrum::Browser.new(browser_path: ENV["BROWSER_PATH"].presence, headless: true, timeout: 20, process_timeout: 20, browser_options: { "disable-dev-shm-usage" => nil, "disable-background-networking" => nil, "disable-extensions" => nil, "js-flags" => "--jitless" })
+    browser = Ferrum::Browser.new(browser_path: ENV["BROWSER_PATH"].presence, headless: true, timeout: 20, process_timeout: 20, browser_options: { "no-sandbox" => nil, "disable-dev-shm-usage" => nil, "disable-background-networking" => nil, "disable-extensions" => nil, "js-flags" => "--jitless" })
     browser.network.intercept
     browser.on(:request) { |request| request.abort }
     browser.page.command("Emulation.setScriptExecutionDisabled", value: true)
