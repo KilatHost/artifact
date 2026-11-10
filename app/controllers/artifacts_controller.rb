@@ -63,11 +63,13 @@ class ArtifactsController < ApplicationController
 
   def publish
     @artifact.publish!(version_id: params.require(:version_id))
+    return redirect_to public_artifact_path(@artifact.public_id) if params[:return_to] == "viewer"
     redirect_to @artifact, notice: "This version is public. Anyone with the link can read it."
   end
 
   def unpublish
     @artifact.unpublish!
+    return redirect_to public_artifact_path(@artifact.public_id) if params[:return_to] == "viewer"
     redirect_to @artifact, notice: "Public link turned off. Copies people already downloaded stay with them."
   end
 

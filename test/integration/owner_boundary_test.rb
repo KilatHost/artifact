@@ -120,6 +120,39 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
     assert_equal "#{base}/p/#{@artifact.public_id}", published["public_url"]
   end
 
+  test "the viewer shows a private artifact and its switch only to the owner" do
+    get public_artifact_path(@artifact.public_id)
+    assert_response :not_found
+    sign_in @intruder
+    get public_artifact_path(@artifact.public_id)
+    assert_response :not_found
+    get public_artifact_frame_path(@artifact.public_id)
+    assert_response :not_found
+
+    sign_in @owner
+    get public_artifact_path(@artifact.public_id)
+    assert_response :success
+    assert_includes response.body, "Only you"
+    assert_includes response.body, 'role="switch"'
+    post publish_artifact_path(@artifact), params: { version_id: @artifact.current_version_id, return_to: "viewer" }
+    assert_redirected_to public_artifact_path(@artifact.public_id)
+    assert_equal @artifact.current_version_id, @artifact.reload.published_version_id
+    post unpublish_artifact_path(@artifact), params: { return_to: "viewer" }
+    assert_redirected_to public_artifact_path(@artifact.public_id)
+    assert_nil @artifact.reload.published_version_id
+  end
+
+  test "visitors of a published artifact can download it but get no switch" do
+    @artifact.publish!(version_id: @artifact.current_version_id)
+    get public_artifact_path(@artifact.public_id)
+    assert_response :success
+    refute_includes response.body, 'role="switch"'
+    get public_artifact_download_path(@artifact.public_id, export_format: "html")
+    assert_response :success
+    assert_includes response.body, "Owner only"
+    assert_match "attachment", response.headers["Content-Disposition"]
+  end
+
   test "revoking an OAuth client revokes all its tokens" do
     app = Doorkeeper::Application.create!(name: "Client", redirect_uri: "https://client.example/cb", scopes: "read", confidential: false)
     tokens = 2.times.map { Doorkeeper::AccessToken.create!(application: app, resource_owner_id: @owner.id, scopes: "read", expires_in: 3600) }

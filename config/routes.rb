@@ -19,4 +19,5 @@ Rails.application.routes.draw do
   get "p/:public_id", to: "public_artifacts#show", as: :public_artifact
   get "p/:public_id/frame", to: "public_artifacts#frame", as: :public_artifact_frame
   get "p/:public_id/file", to: "public_artifacts#file", as: :public_artifact_file
+  get "p/:public_id/download", to: "public_artifacts#download", as: :public_artifact_download
 end
