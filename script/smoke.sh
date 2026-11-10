@@ -40,8 +40,9 @@ VERSION=$(echo "$PAGE" | grep -o 'name="version_id" value="[0-9]*"' | head -1 | 
 T=$(echo "$PAGE" | meta_token)
 curl -fsS -b "$JAR" -c "$JAR" -o /dev/null --data-urlencode "authenticity_token=$T" -d "version_id=$VERSION" "$BASE$DOC_PATH/publish"
 PUBLIC=$(curl -fsS -b "$JAR" "$BASE$DOC_PATH" | grep -o '/p/[A-Za-z0-9]*' | head -1)
-curl -fsS "$BASE$PUBLIC" | grep -q "Smoke check passed"
-if curl -fsS "$BASE$PUBLIC" | grep -q "<script>alert"; then echo "script survived sanitizing"; exit 1; fi
+curl -fsS "$BASE$PUBLIC" | grep -q "$PUBLIC/frame"
+curl -fsS "$BASE$PUBLIC/frame" | grep -q "Smoke check passed"
+if curl -fsS "$BASE$PUBLIC/frame" | grep -q "<script>alert"; then echo "script survived sanitizing"; exit 1; fi
 echo "public $PUBLIC ok"
 
 step "PDF export inside the container"
@@ -66,7 +67,7 @@ echo "status $CODE"
 [ "$CODE" = "413" ]
 
 check_data() {
-  curl -fsS "$BASE$PUBLIC" | grep -q "Smoke check passed"
+  curl -fsS "$BASE$PUBLIC/frame" | grep -q "Smoke check passed"
   curl -fsS -b "$JAR" -o "$WORK/again.bin" "$BASE$FILE_PATH/export?export_format=file"
   cmp "$WORK/upload.bin" "$WORK/again.bin"
 }

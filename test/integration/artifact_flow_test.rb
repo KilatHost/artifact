@@ -15,13 +15,17 @@ class ArtifactFlowTest < ActionDispatch::IntegrationTest
     artifact.publish!(version_id: original.id)
     get public_artifact_path(artifact.public_id)
     assert_response :success
+    assert_includes response.body, %(src="#{public_artifact_frame_path(artifact.public_id)}")
+    get public_artifact_frame_path(artifact.public_id)
+    assert_response :success
+    assert_includes response.headers["Content-Security-Policy"], "sandbox"
     assert_includes response.body, "Published report"
     kit.update!(tokens: kit.tokens.merge("accent" => "#ff0000"))
     artifact.revise!(expected_version: 1, title: "Private revision", content: "<h1>Secret draft</h1>", author: @user.email)
     assert_equal "#171717", original.reload.design_tokens["accent"]
     assert_equal "#ff0000", artifact.current_version.design_tokens["accent"]
     assert_raises(Artifact::Conflict) { artifact.revise!(expected_version: 1, title: "Overwrite", content: "lost", author: "Agent") }
-    get public_artifact_path(artifact.public_id)
+    get public_artifact_frame_path(artifact.public_id)
     assert_includes response.body, "Published report"
     refute_includes response.body, "Secret draft"
     artifact.restore!(version_id: original.id, expected_version: 2, author: @user.email)
@@ -29,6 +33,8 @@ class ArtifactFlowTest < ActionDispatch::IntegrationTest
     assert_equal original.content, artifact.current_version.content
     artifact.unpublish!
     get public_artifact_path(artifact.public_id)
+    assert_response :not_found
+    get public_artifact_frame_path(artifact.public_id)
     assert_response :not_found
   end
 

@@ -1,0 +1,35 @@
+<% content_for :title, "#{@version.title} · Kilat Artifact" %>
+<% content_for :head do %>
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Kilat Artifact">
+  <meta property="og:title" content="<%= @version.title %>">
+  <meta property="og:url" content="<%= public_artifact_url(@artifact.public_id) %>">
+<% end %>
+<div class="viewer">
+  <header class="viewer-bar" aria-label="Artifact">
+    <div class="viewer-bar-title">
+      <%= link_to root_path, class: "viewer-icon", aria: { label: "Kilat Artifact" }, title: "Kilat Artifact" do %><%= artifact_mark %><% end %>
+      <details class="menu viewer-menu">
+        <summary title="<%= @version.title %>"><strong><%= @version.title %></strong><%= icon("chevron-down") %></summary>
+        <div class="menu-panel">
+          <p>Version <%= @version.number %> · saved <%= @version.created_at.utc.strftime("%-d %b %Y") %><br>Published with Kilat Artifact. Later edits stay private until the owner publishes again.</p>
+        </div>
+      </details>
+    </div>
+    <div class="viewer-bar-actions" data-controller="copy">
+      <code data-copy-target="source" hidden><%= public_artifact_url(@artifact.public_id) %></code>
+      <button type="button" class="viewer-action" data-action="copy#copy"><%= icon("copy") %><span data-copy-target="label">Copy link</span></button>
+    </div>
+  </header>
+  <% if @version.kind == "file" %>
+    <main class="viewer-file">
+      <div class="empty-state">
+        <p class="card-title"><%= @version.file.filename %></p>
+        <p class="card-desc"><%= number_to_human_size(@version.file.byte_size) %> · <%= @version.file.content_type %></p>
+        <%= link_to "Download file", public_artifact_file_path(@artifact.public_id), class: "button-primary" %>
+      </div>
+    </main>
+  <% else %>
+    <iframe class="viewer-frame" src="<%= public_artifact_frame_path(@artifact.public_id) %>" title="<%= @version.title %>" sandbox referrerpolicy="no-referrer"></iframe>
+  <% end %>
+</div>

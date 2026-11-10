@@ -274,3 +274,28 @@ trix-editor pre { padding:var(--phi-13); border-radius:var(--radius-md); backgro
 .card-header + .preview-frame, .card-header + .history { margin-top:var(--phi-13); }
 .card > .card-list:first-child > li:first-child { border-top:0; }
 trix-toolbar .trix-button-row { justify-content:flex-start; }
+
+/* Public viewer (/p/<id>): a thin bar above the full-bleed sandboxed snapshot, as on Claude's
+   artifact pages and KilatHost/web's viewer. */
+.viewer-body { margin:0; background:var(--canvas); }
+.viewer { display:flex; flex-direction:column; height:100dvh; background:var(--canvas); }
+.viewer-bar { display:flex; flex-shrink:0; align-items:center; justify-content:space-between; gap:var(--phi-13); height:40px; padding:0 var(--phi-8); border-bottom:1px solid var(--line); background:var(--canvas); }
+.viewer-bar-title { display:flex; min-width:0; align-items:center; gap:var(--phi-5); font-size:14px; }
+.viewer-icon { display:grid; place-items:center; flex-shrink:0; width:28px; height:28px; border-radius:var(--radius-md); color:var(--ink); transition:background-color .15s var(--ease-out); }
+.viewer-icon:hover, .viewer-menu > summary:hover, .viewer-action:hover { background:var(--accent-soft); }
+.viewer-icon svg { width:18px; height:18px; }
+.viewer-menu { min-width:0; }
+.viewer-menu > summary { display:flex; align-items:center; gap:var(--phi-5); min-width:0; height:28px; padding:0 var(--phi-8); border-radius:var(--radius-md); cursor:pointer; transition:background-color .15s var(--ease-out); }
+.viewer-menu > summary strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; color:var(--ink); }
+.viewer-menu > summary svg { flex-shrink:0; width:14px; height:14px; color:var(--muted); }
+.viewer-menu .menu-panel { left:0; right:auto; width:min(300px, calc(100vw - 32px)); }
+.viewer-menu .menu-panel p { margin:0; line-height:1.6; }
+.viewer-bar-actions { display:flex; flex-shrink:0; align-items:center; }
+.viewer-action { display:inline-flex; align-items:center; gap:var(--phi-5); height:28px; padding:0 var(--phi-8); border:1px solid var(--line); border-radius:var(--radius-md); background:var(--surface); color:var(--ink); font-size:13px; font-weight:500; transition:background-color .15s var(--ease-out), transform .1s var(--ease-out); }
+.viewer-action:active { transform:scale(.97); }
+.viewer-action svg { width:14px; height:14px; }
+.viewer-frame { display:block; flex:1 1 auto; width:100%; min-height:0; border:0; background:var(--surface); }
+.viewer-file { flex:1 1 auto; display:grid; place-items:center; padding:var(--phi-34) 16px; }
+.viewer-file .empty-state { width:100%; max-width:28rem; }
+@media print { .viewer-bar { display:none; } }
+@media (prefers-reduced-motion: reduce) { .viewer-action:active { transform:none; } }

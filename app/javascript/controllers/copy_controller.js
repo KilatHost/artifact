@@ -4,6 +4,7 @@ export default class extends Controller {
   static targets = ["source", "label"]
 
   async copy() {
+    this.idle ??= this.labelTarget.textContent
     const text = this.sourceTarget.textContent.trim()
     try {
       await navigator.clipboard.writeText(text)
@@ -17,6 +18,6 @@ export default class extends Controller {
       this.labelTarget.textContent = "Press ⌘C"
     }
     clearTimeout(this.timer)
-    this.timer = setTimeout(() => { this.labelTarget.textContent = "Copy" }, 2000)
+    this.timer = setTimeout(() => { this.labelTarget.textContent = this.idle }, 2000)
   }
 }
