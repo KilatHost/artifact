@@ -11,7 +11,9 @@ trap 'rm -rf "$WORK"' EXIT
 
 step() { printf '\n== %s\n' "$*"; }
 wait_up() { for _ in $(seq 1 60); do curl -fsS "$BASE/up" >/dev/null 2>&1 && return 0; sleep 2; done; echo "app did not start"; return 1; }
-token() { curl -fsS -b "$JAR" -c "$JAR" "$BASE$1" | grep -o 'name="authenticity_token" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"$//'; }
+# The page-wide token from <meta name="csrf-token">; form tokens are scoped to their own form.
+meta_token() { grep -o 'name="csrf-token" content="[^"]*"' | head -1 | sed 's/.*content="//;s/"$//'; }
+token() { curl -fsS -b "$JAR" -c "$JAR" "$BASE$1" | meta_token; }
 location() { grep -i '^location:' | tr -d '\r' | awk '{print $2}'; }
 
 step "Start"
@@ -35,7 +37,7 @@ echo "$DOC_PATH"
 step "Publish"
 PAGE=$(curl -fsS -b "$JAR" -c "$JAR" "$BASE$DOC_PATH")
 VERSION=$(echo "$PAGE" | grep -o 'name="version_id" value="[0-9]*"' | head -1 | grep -o '[0-9]*')
-T=$(echo "$PAGE" | grep -o 'name="authenticity_token" value="[^"]*"' | head -1 | sed 's/.*value="//;s/"$//')
+T=$(echo "$PAGE" | meta_token)
 curl -fsS -b "$JAR" -c "$JAR" -o /dev/null --data-urlencode "authenticity_token=$T" -d "version_id=$VERSION" "$BASE$DOC_PATH/publish"
 PUBLIC=$(curl -fsS -b "$JAR" "$BASE$DOC_PATH" | grep -o '/p/[A-Za-z0-9]*' | head -1)
 curl -fsS "$BASE$PUBLIC" | grep -q "Smoke check passed"
