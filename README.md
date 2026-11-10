@@ -90,7 +90,7 @@ For compatible remote MCP clients, enter the endpoint URL and complete browser a
 
 Authorization codes require S256 PKCE. Registered redirects must use HTTPS, except supported HTTP loopback redirects. Client registration can request a space-separated `scope`; omitted scope defaults to `read`. Revoke grants from **Connections**.
 
-OAuth support does not prove compatibility with every assistant. Claude, ChatGPT, Gemini and Manus have not been tested against this application; their plans and connector capabilities may differ.
+Tested: Claude, as a custom connector on claude.ai over OAuth (November 2026): sign-in, create, read, update, publish, Markdown briefs and interactive HTML decks. Not yet tested: ChatGPT, Gemini and Manus; their plans and connector capabilities may differ.
 
 ### Personal tokens
 
