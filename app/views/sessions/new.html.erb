@@ -1,0 +1,12 @@
+<% content_for :title, "Sign in · Kilat Artifact" %>
+<section class="auth">
+  <div class="card"><div class="card-body">
+    <h1>Sign in</h1>
+    <%= form_with url: session_path, class: "form-stack", data: { turbo: false } do |form| %>
+      <div class="field-group"><%= form.label :email, class: "field-label" %><%= form.email_field :email, required: true, autocomplete: "username", autofocus: true, class: "field" %></div>
+      <div class="field-group"><%= form.label :password, class: "field-label" %><%= form.password_field :password, required: true, autocomplete: "current-password", class: "field" %></div>
+      <%= form.submit "Sign in", class: "button-primary button-block" %>
+    <% end %>
+  </div></div>
+  <% if RegistrationsController.open? %><p class="auth-foot">New here? <%= link_to "Create an account", new_registration_path %></p><% end %>
+</section>

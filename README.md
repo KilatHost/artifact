@@ -1,0 +1,189 @@
+# Kilat Artifact
+
+A shared scratchpad for your AI agents. Create Markdown, HTML pages and files in one workspace; edit them in your browser or through MCP; share one link that always shows the latest version.
+
+**Open source, self-hostable, Apache-2.0.** The same application is intended to power Kilat Cloud. A managed cloud service is not available from this repository yet.
+
+> **Status:** local MVP. Browser flows, automated tests and local Chromium exports have been exercised. Linux container runtime, backup recovery, S3 operation and named AI-client integrations have not been verified. Do not treat this as a production-ready release.
+
+## What it does
+
+| Capability | Behavior |
+| --- | --- |
+| Markdown | GitHub-flavoured Markdown, stored as written and rendered on view; raw HTML is dropped |
+| HTML | Full pages or fragments, shown as written. Scripts run in a sandbox with no access to the app; libraries load from cdnjs, jsdelivr, unpkg and the Tailwind CDN |
+| Rich text | Browser editing with Trix; content stored as sanitized HTML |
+| File artifacts | Upload and version original files, up to 20 MiB each |
+| Version history | Saves create immutable versions; restore creates a new version |
+| Concurrent edits | Stale version writes fail instead of overwriting newer work |
+| Private and public | Private until you make it public; a public link always shows the latest version |
+| Delete and restore | Deleting ends public access at once; restore within 7 days, then it is purged with its versions and files |
+| Exports | PDF, HTML, source and ZIP; original attachment downloads for files |
+| Shared design kits | Workspace font and color tokens, captured in each saved version |
+| Agent connections | MCP over Streamable HTTP, OAuth and revocable personal tokens |
+| Workspace boundaries | Each account owns one workspace; private operations are workspace-scoped |
+
+The interface follows the Kilat design system, with a light, dark or system theme switch in the top bar. Geist and Geist Mono ship inside the image, so the app itself loads no third-party fonts or scripts (artifacts may; see Security). Published artifacts use their captured design tokens instead of the interface theme.
+
+### What it does not do
+
+- No automatic import or synchronization of Claude Artifacts, ChatGPT Canvas, Gemini Canvas or Manus workspaces. Agents must explicitly use this server's tools.
+- No built-in AI chat or required model API key. Your AI client supplies the intelligence and pays its own model costs.
+- No autosave, real-time co-editing, arbitrary website visual editor or server-side execution of artifact code.
+- No live Markdown preview while typing, inline document attachments, team invitations or billing.
+- Design kits currently contain fonts and colors, not a full component/template system. Freeform HTML can override those styles; consistent agent output is not guaranteed by tokens alone.
+- Generic file artifacts are stored and downloaded, not converted into editable documents. Their link shows a download page; Markdown, HTML and rich-text links render the page.
+
+## Quick start
+
+Use a Linux host with Git, Docker Engine and Docker Compose v2. No host Ruby or Node installation is required.
+
+```sh
+git clone https://github.com/KilatHost/artifact.git
+cd artifact
+cp .env.example .env
+openssl rand -hex 64
+openssl rand -hex 64
+```
+
+Put the two independently generated values in `.env` as `SECRET_KEY_BASE` and `POSTGRES_PASSWORD`. Keep the database password hexadecimal because Compose interpolates it into a URL.
+
+```sh
+docker compose up --build -d
+curl --fail http://localhost:3000/up
+```
+
+Open <http://localhost:3000> and create an account. There is no default account or seeded password. The port binds to the host's loopback interface, not the public network.
+
+Compose runs three services: `web` (Rails behind Thruster), `jobs` (purges artifacts deleted more than 7 days ago, hourly) and `db` (PostgreSQL). Without Compose, schedule `bin/rails artifacts:purge_archived`.
+
+**Forgotten password.** The self-hosted edition sends no email. An operator runs `docker compose exec web bin/rails users:reset_password EMAIL=person@example.com`, which prints a new random password once and revokes that account's OAuth connections.
+
+For remote access, TLS, storage, backups and upgrades, follow **[deploy.md](deploy.md)**. Build images on Linux or a remote builder; this project's development policy excludes local macOS image builds.
+
+## How publishing works
+
+1. Create a private artifact and save versions as you work.
+2. Make it public. Its link is `/p/<public_id>`, with a Kilat bar (title, download, copy link) above the artifact.
+3. Every version saved after that, including a restore, is live on the link at once. Make it private again to turn the link off; the owner can still open it there.
+
+Unpublishing disables the public endpoint, but cannot recall copies already downloaded, cached by third parties or captured in screenshots. Public access is read-only; private version history is not published.
+
+## Connect an agent
+
+Endpoint: `https://your-host.example/mcp`.
+
+Transport: **stateless MCP Streamable HTTP**, with JSON responses. No stdio endpoint is provided.
+
+### OAuth
+
+For compatible remote MCP clients, enter the endpoint URL and complete browser authorization. The server exposes:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `/.well-known/oauth-authorization-server` | Authorization-server discovery |
+| `/.well-known/oauth-protected-resource/mcp` | Protected-resource discovery |
+| `/oauth/register` | Dynamic public-client registration |
+| `/oauth/authorize` | Owner consent |
+| `/oauth/token` | Authorization-code exchange and refresh |
+| `/oauth/revoke` | Token revocation |
+
+Authorization codes require S256 PKCE. Registered redirects must use HTTPS, except supported HTTP loopback redirects. Client registration can request a space-separated `scope`; omitted scope defaults to `read`. Revoke grants from **Connections**.
+
+Tested: Claude, as a custom connector on claude.ai over OAuth (November 2026): sign-in, create, read, update, publish, Markdown briefs and interactive HTML decks. Not yet tested: ChatGPT, Gemini and Manus; their plans and connector capabilities may differ.
+
+### Personal tokens
+
+Open **Connections**, name the connection, select permissions and create a token. Copy it once; only its SHA-256 digest is stored. Configure your client's bearer-header support:
+
+```text
+Authorization: Bearer <your-token>
+```
+
+Do not put secrets in artifact content, URLs, screenshots or source control.
+
+| Scope | Allows |
+| --- | --- |
+| `read` | List/read artifacts, history and design kits |
+| `write` | Create/revise/restore drafts and create/update design kits |
+| `publish` | Publish or unpublish specified artifacts |
+
+Scopes are independent. `write` does not include `publish`, and does not implicitly grant `read`.
+
+### MCP tools
+
+| Tool | Scope | Important inputs |
+| --- | --- | --- |
+| `list_artifacts` | `read` | Optional `offset`; 100 results per page |
+| `get_artifact` | `read` | Artifact `id`; optional `version` number |
+| `create_artifact` | `write` | `request_id`, `title`, `kind`, `content`; optional `design_kit_id` |
+| `update_artifact` | `write` | `id`, `content`; optional `title`, `kind`, `expected_version` |
+| `artifact_history` | `read` | `id`; optional `offset`; 100 results per page |
+| `restore_artifact` | `write` | `id`, `version` number |
+| `delete_artifact` | `write` | `id`; restorable in the web app for 7 days |
+| `list_design_kits` | `read` | Optional `offset`; 100 results per page |
+| `create_design_kit` | `write` | `name`, `tokens` |
+| `update_design_kit` | `write` | Kit `id`, `name`, `tokens` |
+| `publish_artifact` | `publish` | `id` |
+| `unpublish_artifact` | `publish` | `id` |
+
+`create_artifact` accepts `markdown` (prose) or `html` (designed or interactive pages). Every result carries `url`, the one link to give people: the owner can open it while private, anyone once public. `edit_url` opens the editor. Use a stable `request_id` of 1–128 characters when retrying the same creation: identical requests return the original result; changed content under the same ID is rejected. `update_artifact` saves on top of the latest version unless you pass `expected_version`, in which case a newer edit is refused. The server also sends these rules to clients as MCP instructions.
+
+MCP exposes file metadata, not binary upload/download tools. Browser uploads and authorized HTTP downloads handle files.
+
+## Design kits
+
+Agents should list available kits, choose one and supply its ID when creating an artifact. A kit uses this token shape:
+
+```json
+{
+  "font": "system-ui",
+  "background": "#ffffff",
+  "foreground": "#171717",
+  "accent": "#171717"
+}
+```
+
+Fonts are `system-ui`, `serif` or `monospace`; colors must be six-digit hex values. Existing versions retain their captured kit values when a kit changes. A restored version retains its original styling snapshot.
+
+## Stack and development
+
+Ruby **3.3.13**, Rails **8.1**, PostgreSQL, Hotwire/Stimulus, Trix, native CSS, the MCP Ruby SDK, Doorkeeper, Active Storage and Ferrum/Chromium. No Node build, Redis or vector database is required. Storage can use a local volume or S3-compatible object storage.
+
+With Ruby 3.3.13 and a disposable PostgreSQL database available:
+
+```sh
+bundle install
+export DATABASE_URL=postgresql://localhost/kilat_artifact_development
+bin/rails db:prepare
+bin/rails server
+```
+
+PDF export also needs Chromium; set `BROWSER_PATH` when it is not discoverable. Never point test commands at a development or production database:
+
+```sh
+export DATABASE_URL=postgresql://localhost/kilat_artifact_test
+RAILS_ENV=test bin/rails db:prepare
+bin/rails test
+bundle exec rubocop
+bundle exec brakeman --no-pager
+bin/rails zeitwerk:check
+```
+
+The production image omits development/test gems. Run lint, security scans and tests in a development environment, not by assuming those tools exist in that image.
+
+## Security and operations
+
+Artifact content is untrusted input, not agent instructions. Every response that carries artifact content sends `Content-Security-Policy: sandbox allow-scripts allow-popups …` without `allow-same-origin`, so an artifact runs with an opaque origin: it cannot read this app's cookies, storage or pages, and `connect-src 'none'` blocks fetch and XHR. Set `ARTIFACT_EXTERNAL_RESOURCES=false` to also block the CDN, font and https image hosts (visitors' browsers otherwise contact them when an artifact asks). PDF export runs Chromium without its own sandbox (Docker's default seccomp profile prevents it), with scripts disabled and every request aborted, so a page drawn by scripts (such as a slide deck) prints as its first static state; the PDF download is a static print. HTML artifacts can use forms, dialogs, downloads and the clipboard inside the page, but cannot send data anywhere; opened on its own, an artifact frame redirects to its viewer page. Add network-level egress restrictions for defense in depth.
+
+Public deployments need TLS, trusted proxy configuration, request/upload limits, backups and monitoring. Sign-up is open only for the first account; set `ALLOW_SIGNUP=true` to let anyone create an account (each gets its own workspace). See [deploy.md](deploy.md) for release gates and operational limits.
+
+Report suspected security issues privately to repository maintainers; do not publish credentials or a working exploit against customer data.
+
+## License
+
+[Apache License 2.0](LICENSE).
+
+**Trademarks.** The license covers the code, not the Kilat and Kilat Artifact names or the bolt marks (`public/icon.svg`, `public/icon.png`, `app/assets/images/kilat-artifact-mark.svg`). You may run unmodified copies under these names. If you distribute a modified version, use your own name and marks.
+
+Geist and Geist Mono are by Vercel and basement.studio, under the SIL Open Font License 1.1 (`app/assets/fonts/GEIST-OFL.txt`).

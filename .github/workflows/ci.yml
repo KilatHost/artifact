@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: kilat
+          POSTGRES_PASSWORD: kilat
+          POSTGRES_DB: kilat_artifact_test
+        ports: [ "5432:5432" ]
+        options: --health-cmd "pg_isready -U kilat" --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      RAILS_ENV: test
+      DATABASE_URL: postgres://kilat:kilat@localhost:5432/kilat_artifact_test
+      PARALLEL_WORKERS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+      - run: bin/rails db:prepare
+      - run: bin/rails test
+      - run: bundle exec rubocop
+      - run: bundle exec brakeman --no-pager --quiet
+      - run: bin/rails zeitwerk:check
+
+  smoke:
+    runs-on: ubuntu-24.04
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Write .env
+        run: |
+          printf 'SECRET_KEY_BASE=%s\nPOSTGRES_PASSWORD=%s\nAPP_HOST=localhost\nPORT=3000\nFORCE_SSL=false\n' "$(openssl rand -hex 64)" "$(openssl rand -hex 32)" > .env
+      - run: docker compose build
+      - run: script/smoke.sh
+      - if: failure()
+        run: docker compose logs --tail=200

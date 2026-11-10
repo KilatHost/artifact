@@ -1,0 +1,89 @@
+<% content_for :title, "#{@artifact.title} · Kilat Artifact" %>
+<% published = @artifact.published_version %>
+<div class="page-header">
+  <div>
+    <span class="eyebrow"><%= link_to "Artifacts", artifacts_path %> / <%= kind_label(@artifact.kind) %></span>
+    <h1 class="page-heading"><%= @artifact.title %></h1>
+  </div>
+  <% if published %>
+    <span class="status-badge"><span class="status-dot" data-state="published"></span>Public</span>
+  <% else %>
+    <span class="status-badge"><span class="status-dot"></span>Private</span>
+  <% end %>
+</div>
+
+<div class="workspace">
+  <div class="stack">
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Edit</h2>
+          <p class="card-desc"><%= @version.id == @artifact.current_version_id ? "Editing version #{@version.number}, the latest." : "Showing version #{@version.number}. Saving makes it the latest." %></p>
+        </div>
+      </div>
+      <div class="card-body"><%= render "form", artifact: @artifact, version: @draft || @version %></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title">Preview</h2>
+          <p class="card-desc">Version <%= @version.number %> as saved.</p>
+        </div>
+        <%= link_to preview_artifact_path(@artifact, version_id: @version.id), target: "_blank", rel: "noopener", class: "button-ghost button-sm" do %>Open<%= icon("external") %><% end %>
+      </div>
+      <iframe class="preview-frame" title="Preview of version <%= @version.number %>" sandbox="<%= ArtifactRendering::SANDBOX %>" allow="clipboard-write" referrerpolicy="no-referrer" src="<%= preview_artifact_path(@artifact, version_id: @version.id) %>"></iframe>
+    </section>
+  </div>
+
+  <aside class="stack" aria-label="Artifact actions">
+    <section class="card">
+      <div class="card-header"><div><h2 class="card-title">Link</h2>
+        <p class="card-desc"><%= published ? "Anyone with the link sees the latest version. New versions go live when you save." : "Only you can open the link. Make it public to share it; it always shows the latest version." %></p>
+      </div></div>
+      <div class="card-body form-stack">
+        <div class="copy-field" data-controller="copy">
+          <code data-copy-target="source"><%= public_artifact_url(@artifact.public_id) %></code>
+          <button type="button" class="copy-button" data-action="copy#copy"><%= icon("copy") %><span data-copy-target="label">Copy</span></button>
+        </div>
+        <% unless published %>
+          <%= button_to "Make public", publish_artifact_path(@artifact), class: "button-secondary button-block", data: { turbo_confirm: "Make it public? Anyone with the link can open it, and new versions go live when you save." } %>
+        <% end %>
+        <% if published %>
+          <%= button_to "Turn off public link", unpublish_artifact_path(@artifact), class: "button-ghost button-block", data: { turbo_confirm: "Turn off the public link? Copies people already saved stay with them." } %>
+        <% end %>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><div><h2 class="card-title">Download</h2><p class="card-desc">Version <%= @version.number %>.</p></div></div>
+      <div class="card-body export-grid">
+        <% artifact_export_formats(@version).each do |format| %>
+          <%= link_to export_artifact_path(@artifact, export_format: format, version_id: @version.id), class: "button-secondary button-sm", data: { turbo: false } do %><%= icon("download") %><%= export_label(format) %><% end %>
+        <% end %>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header"><div><h2 class="card-title">History</h2><p class="card-desc"><%= pluralize(@versions.size, "version") %>. Restoring adds a new version.</p></div></div>
+      <ol class="history">
+        <% @versions.each do |version| %>
+          <li>
+            <div>
+              <div class="<%= 'history-current' if version.id == @artifact.current_version_id %>">Version <%= version.number %><%= " · latest" if version.id == @artifact.current_version_id %><%= " · public" if version.id == @artifact.published_version_id %></div>
+              <div class="caption tabular"><%= version.created_at.strftime("%-d %b %Y, %H:%M UTC") %> · <%= version.author %></div>
+            </div>
+            <div class="row-actions">
+              <%= link_to "View", artifact_path(@artifact, version_id: version.id) unless version.id == @version.id %>
+              <% unless version.id == @artifact.current_version_id %>
+                <%= button_to "Restore", restore_artifact_path(@artifact), params: { version_id: version.id, expected_version: @artifact.current_version.number }, class: "text-button", data: { turbo_confirm: "Restore version #{version.number} as a new version?" } %>
+              <% end %>
+            </div>
+          </li>
+        <% end %>
+      </ol>
+    </section>
+
+    <%= button_to archive_artifact_path(@artifact), class: "button-ghost button-block", data: { turbo_confirm: "Delete \"#{@artifact.title}\"? The public link stops now. You can restore it for 7 days." } do %><%= icon("trash") %>Delete artifact<% end %>
+  </aside>
+</div>

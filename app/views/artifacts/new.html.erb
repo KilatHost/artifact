@@ -1,0 +1,10 @@
+<% content_for :title, "New artifact · Kilat Artifact" %>
+<div class="page-header">
+  <div>
+    <span class="eyebrow"><%= link_to "Artifacts", artifacts_path %></span>
+    <h1 class="page-heading">New artifact</h1>
+  </div>
+</div>
+<div class="card"><div class="card-body">
+  <%= render "form", artifact: @artifact, version: @draft %>
+</div></div>

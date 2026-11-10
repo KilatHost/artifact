@@ -1,0 +1,76 @@
+<% content_for :title, "Connections · Kilat Artifact" %>
+<div class="page-header">
+  <div>
+    <h1 class="page-heading">Connections</h1>
+    <p class="card-desc">Let an AI agent read and write your artifacts over MCP. Give each one only the access it needs.</p>
+  </div>
+</div>
+
+<% if @new_token.present? %>
+  <section class="card" data-turbo-temporary>
+    <div class="card-header"><div><h2 class="card-title">Copy your token now</h2><p class="card-desc">You won't see it again. Keep it in your agent's secret settings, never inside an artifact.</p></div></div>
+    <div class="card-body">
+      <div class="copy-field" data-controller="copy">
+        <code data-copy-target="source"><%= @new_token %></code>
+        <button type="button" class="copy-button" data-action="copy#copy"><%= icon("copy") %><span data-copy-target="label">Copy</span></button>
+      </div>
+    </div>
+  </section>
+  <div class="section-space"></div>
+<% end %>
+
+<div class="two-column">
+  <section class="card">
+    <div class="card-header"><div><h2 class="card-title">MCP address</h2><p class="card-desc">Agents that support OAuth sign in here and ask for access. Others use a token.</p></div></div>
+    <div class="card-body form-stack">
+      <div class="copy-field" data-controller="copy">
+        <code data-copy-target="source"><%= request.base_url %>/mcp</code>
+        <button type="button" class="copy-button" data-action="copy#copy"><%= icon("copy") %><span data-copy-target="label">Copy</span></button>
+      </div>
+      <p class="caption">Streamable HTTP. Tokens go in the <span class="mono">Authorization: Bearer</span> header.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-header"><div><h2 class="card-title">New token</h2></div></div>
+    <div class="card-body">
+      <%= form_with url: connections_path, scope: :connection, class: "form-stack" do |form| %>
+        <div class="field-group"><%= form.label :name, "Name", class: "field-label" %><%= form.text_field :name, required: true, maxlength: 100, placeholder: "Claude on my laptop", class: "field" %></div>
+        <fieldset class="choice-list">
+          <legend class="field-label">Access</legend>
+          <% { "read" => [ "Read", "Artifacts, history and design kits" ], "write" => [ "Write", "Create and edit private drafts" ], "publish" => [ "Publish", "Make versions public and turn links off" ] }.each do |scope, (name, desc)| %>
+            <label class="choice" for="scope-<%= scope %>"><%= check_box_tag "connection[scopes][]", scope, scope == "read", id: "scope-#{scope}" %><span><strong><%= name %></strong><span class="caption"><%= desc %></span></span></label>
+          <% end %>
+        </fieldset>
+        <div class="form-actions"><%= form.submit "Create token", class: "button-primary" %></div>
+      <% end %>
+    </div>
+  </section>
+</div>
+
+<section class="section-space">
+  <h2 class="section-label">Connected</h2>
+  <% if @tokens.any? || @oauth_clients.any? %>
+    <div class="card">
+      <ul class="card-list">
+        <% @oauth_clients.each do |client| %>
+          <li>
+            <div><div class="row-title"><%= client.name %></div><div class="row-meta"><span>OAuth</span><span><%= client.scopes.to_s.split.map(&:capitalize).join(", ") %></span></div></div>
+            <%= button_to "Revoke", connection_path(client.id, oauth: 1), method: :delete, class: "button-secondary button-sm", data: { turbo_confirm: "Revoke #{client.name}? It loses access right away." } %>
+          </li>
+        <% end %>
+        <% @tokens.each do |token| %>
+          <li>
+            <div><div class="row-title"><%= token.name %></div><div class="row-meta"><span>Token</span><span><%= token.scopes.split.map(&:capitalize).join(", ") %></span><span class="tabular">Created <%= token.created_at.strftime("%-d %b %Y") %></span></div></div>
+            <%= button_to "Revoke", connection_path(token), method: :delete, class: "button-secondary button-sm", data: { turbo_confirm: "Revoke #{token.name}? It loses access right away." } %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  <% else %>
+    <section class="empty-state">
+      <h3 class="card-title">Nothing connected yet</h3>
+      <p class="card-desc">Add the MCP address to your agent, or create a token above.</p>
+    </section>
+  <% end %>
+</section>

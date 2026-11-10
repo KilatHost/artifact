@@ -1,0 +1,22 @@
+<% content_for :title, "Design kits · Kilat Artifact" %>
+<div class="page-header">
+  <div>
+    <h1 class="page-heading">Design kits</h1>
+    <p class="card-desc">Fonts and colours your artifacts share. Each saved version keeps the kit it had, so editing a kit never changes old versions.</p>
+  </div>
+</div>
+<div class="kit-grid">
+  <% @design_kits.each do |kit| %>
+    <section class="card">
+      <div class="card-header">
+        <div><h2 class="card-title"><%= kit.name %></h2><p class="caption">Version <%= kit.version %></p></div>
+        <span class="swatches" aria-hidden="true"><% %w[background foreground accent].each do |key| %><%= tag.span(class: "swatch", style: "background:#{kit.tokens[key]}") %><% end %></span>
+      </div>
+      <div class="card-body"><%= render "form", kit: kit %></div>
+    </section>
+  <% end %>
+  <section class="card">
+    <div class="card-header"><div><h2 class="card-title">New design kit</h2></div></div>
+    <div class="card-body"><%= render "form", kit: Current.workspace.design_kits.new %></div>
+  </section>
+</div>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= content_for(:title) || "Kilat Artifact" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+    <%= javascript_include_tag "theme", "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <%= brand %>
+        <% if Current.user %>
+          <nav class="nav" aria-label="Main">
+            <%= link_to "Artifacts", artifacts_path, aria: { current: ("page" if controller_name == "artifacts") } %>
+            <%= link_to "Design kits", design_kits_path, aria: { current: ("page" if controller_name == "design_kits") } %>
+            <%= link_to "Connections", connections_path, aria: { current: ("page" if controller_name == "connections") } %>
+          </nav>
+        <% end %>
+        <div class="topbar-actions">
+          <%= theme_toggle %>
+          <% if Current.user %>
+            <details class="menu">
+              <summary class="avatar" aria-label="Account"><%= Current.user.email.first %></summary>
+              <div class="menu-panel">
+                <p><%= Current.user.email %></p>
+                <%= button_to "Sign out", session_path, method: :delete, class: "button-secondary button-block", form: { data: { turbo: false } } %>
+              </div>
+            </details>
+          <% end %>
+        </div>
+      </div>
+    </header>
+    <main id="main" class="page">
+      <% if (message = flash[:alert]) %>
+        <div class="flash flash-error" role="alert"><%= icon("alert") %><span><%= message %></span></div>
+      <% elsif (message = flash[:notice]) %>
+        <div class="flash" role="status"><%= icon("check") %><span><%= message %></span></div>
+      <% end %>
+      <%= yield %>
+    </main>
+  </body>
+</html>

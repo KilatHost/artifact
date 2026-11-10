@@ -1,0 +1,51 @@
+<% content_for :title, "Artifacts · Kilat Artifact" %>
+<div class="page-header">
+  <div>
+    <h1 class="page-heading">Artifacts</h1>
+    <p class="card-desc">Documents, HTML and files you and your agents share. Everything stays private until you make it public.</p>
+  </div>
+  <%= link_to new_artifact_path, class: "button-primary" do %><%= icon("plus") %>New artifact<% end %>
+</div>
+
+<% if @artifacts.any? %>
+  <div class="card">
+    <% @artifacts.each do |artifact| %>
+      <%= link_to artifact_path(artifact), class: "row-link" do %>
+        <div>
+          <div class="row-title"><%= artifact.title %></div>
+          <div class="row-meta"><span><%= kind_label(artifact.kind) %></span><span>Version <%= artifact.current_version&.number %></span><span>Updated <%= time_ago_in_words(artifact.updated_at) %> ago</span></div>
+        </div>
+        <% if artifact.published_version_id %>
+          <span class="status-badge"><span class="status-dot" data-state="published"></span>Published</span>
+        <% else %>
+          <span class="status-badge"><span class="status-dot"></span>Private</span>
+        <% end %>
+      <% end %>
+    <% end %>
+  </div>
+<% else %>
+  <section class="empty-state">
+    <h2 class="card-title">No artifacts yet</h2>
+    <p class="card-desc">Write a document, paste HTML or upload a file. Every save keeps a version you can go back to.</p>
+    <%= link_to "Create your first artifact", new_artifact_path, class: "button-secondary" %>
+  </section>
+<% end %>
+
+<% if @archived.any? %>
+  <section class="section-space">
+    <h2 class="section-label">Deleted</h2>
+    <div class="card">
+      <ul class="card-list">
+        <% @archived.each do |artifact| %>
+          <li>
+            <div>
+              <div class="row-title"><%= artifact.title %></div>
+              <div class="row-meta"><span>Removed for good in <%= distance_of_time_in_words(Time.current, artifact.purge_at) %></span></div>
+            </div>
+            <%= button_to "Restore", unarchive_artifact_path(artifact), class: "button-secondary button-sm" %>
+          </li>
+        <% end %>
+      </ul>
+    </div>
+  </section>
+<% end %>

@@ -1,0 +1,14 @@
+<% content_for :title, "Create account · Kilat Artifact" %>
+<section class="auth">
+  <div class="card"><div class="card-body">
+    <h1>Create your account</h1>
+    <% if @user.errors.any? %><div class="flash flash-error" role="alert"><%= icon("alert") %><span><%= @user.errors.full_messages.to_sentence %>.</span></div><% end %>
+    <%= form_with model: @user, url: registration_path, class: "form-stack", data: { turbo: false } do |form| %>
+      <div class="field-group"><%= form.label :email, class: "field-label" %><%= form.email_field :email, required: true, autocomplete: "username", class: "field" %></div>
+      <div class="field-group"><%= form.label :password, class: "field-label" %><%= form.password_field :password, required: true, minlength: 12, autocomplete: "new-password", class: "field", aria: { describedby: "password-hint" } %><p class="field-hint" id="password-hint">At least 12 characters.</p></div>
+      <div class="field-group"><%= form.label :password_confirmation, "Repeat password", class: "field-label" %><%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", class: "field" %></div>
+      <%= form.submit "Create account", class: "button-primary button-block" %>
+    <% end %>
+  </div></div>
+  <p class="auth-foot">Have an account? <%= link_to "Sign in", new_session_path %></p>
+</section>

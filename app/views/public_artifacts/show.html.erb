@@ -1,0 +1,65 @@
+<% public_now = @artifact.published_version_id.present? %>
+<% content_for :title, "#{@version.title} · Kilat Artifact" %>
+<% if public_now %>
+  <% content_for :head do %>
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Kilat Artifact">
+    <meta property="og:title" content="<%= @version.title %>">
+    <meta property="og:url" content="<%= public_artifact_url(@artifact.public_id) %>">
+  <% end %>
+<% end %>
+<div class="viewer">
+  <header class="viewer-bar" aria-label="Artifact">
+    <div class="viewer-bar-title">
+      <%= link_to root_path, class: "viewer-icon", aria: { label: "Kilat Artifact" }, title: "Kilat Artifact" do %><%= artifact_mark %><% end %>
+      <details class="menu viewer-menu">
+        <summary title="<%= @version.title %>"><strong><%= @version.title %></strong><%= icon("chevron-down") %></summary>
+        <div class="menu-panel">
+          <p>Version <%= @version.number %> · saved <%= @version.created_at.utc.strftime("%-d %b %Y") %></p>
+          <% if @owner %>
+            <%= link_to "Open in editor", artifact_path(@artifact), class: "button-secondary button-block" %>
+          <% else %>
+            <p>Published with Kilat Artifact.</p>
+          <% end %>
+        </div>
+      </details>
+    </div>
+    <div class="viewer-bar-actions">
+      <% unless @version.kind == "file" %>
+        <details class="menu viewer-download">
+          <summary class="viewer-action" aria-label="Download"><%= icon("download") %><span class="viewer-action-label">Download</span></summary>
+          <div class="menu-panel menu-list">
+            <%= link_to "PDF", public_artifact_download_path(@artifact.public_id, export_format: "pdf"), data: { turbo: false } %>
+            <%= link_to "HTML", public_artifact_download_path(@artifact.public_id, export_format: "html"), data: { turbo: false } %>
+          </div>
+        </details>
+      <% end %>
+      <% if @owner %>
+        <span class="viewer-visibility"><%= public_now ? "Anyone with the link" : "Only you" %></span>
+        <%= button_to (public_now ? unpublish_artifact_path(@artifact) : publish_artifact_path(@artifact)),
+              params: { return_to: "viewer" },
+              class: "switch", role: "switch", form_class: "viewer-switch",
+              title: public_now ? "Make private" : "Make public",
+              aria: { checked: public_now.to_s, label: public_now ? "Public: anyone with the link can open it. Make private" : "Private: only you can open it. Make public" },
+              form: { data: (public_now ? {} : { turbo_confirm: "Make it public? Anyone with the link can open it, and new versions go live when you save." }) } do %><span class="switch-knob"></span><% end %>
+      <% end %>
+      <% if public_now %>
+        <div data-controller="copy">
+          <code data-copy-target="source" hidden><%= public_artifact_url(@artifact.public_id) %></code>
+          <button type="button" class="viewer-action" data-action="copy#copy" aria-label="Copy link"><%= icon("copy") %><span class="viewer-action-label" data-copy-target="label">Copy link</span></button>
+        </div>
+      <% end %>
+    </div>
+  </header>
+  <% if @version.kind == "file" %>
+    <main class="viewer-file">
+      <div class="empty-state">
+        <p class="card-title"><%= @version.file.filename %></p>
+        <p class="card-desc"><%= number_to_human_size(@version.file.byte_size) %> · <%= @version.file.content_type %></p>
+        <%= link_to "Download file", public_artifact_file_path(@artifact.public_id), class: "button-primary", data: { turbo: false } %>
+      </div>
+    </main>
+  <% else %>
+    <iframe class="viewer-frame" src="<%= public_artifact_frame_path(@artifact.public_id) %>" title="<%= @version.title %>" sandbox="<%= ArtifactRendering::SANDBOX %>" allow="clipboard-write" referrerpolicy="no-referrer"></iframe>
+  <% end %>
+</div>
