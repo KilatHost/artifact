@@ -8,7 +8,7 @@ class ArtifactFlowTest < ActionDispatch::IntegrationTest
     @other_workspace = @other.workspace || @other.create_workspace!(name: "Other")
   end
 
-  test "versions reject stale writes and public snapshots never expose later drafts" do
+  test "versions reject stale writes, and a public link follows the latest version" do
     kit = @workspace.design_kits.create!(name: "Brand", tokens: DesignKit::DEFAULT_TOKENS)
     artifact = @workspace.artifacts.create_draft!(title: "Report", kind: "document", content: "<h1>Published report</h1>", author: @user.email, design_kit_id: kit.id)
     original = artifact.current_version
@@ -25,12 +25,15 @@ class ArtifactFlowTest < ActionDispatch::IntegrationTest
     assert_equal "#171717", original.reload.design_tokens["accent"]
     assert_equal "#ff0000", artifact.current_version.design_tokens["accent"]
     assert_raises(Artifact::Conflict) { artifact.revise!(expected_version: 1, title: "Overwrite", content: "lost", author: "Agent") }
+    assert_equal artifact.current_version_id, artifact.reload.published_version_id
     get public_artifact_frame_path(artifact.public_id)
-    assert_includes response.body, "Published report"
-    refute_includes response.body, "Secret draft"
+    assert_includes response.body, "Secret draft"
+    refute_includes response.body, "Published report"
     artifact.restore!(version_id: original.id, expected_version: 2, author: @user.email)
     assert_equal 3, artifact.current_version.number
     assert_equal original.content, artifact.current_version.content
+    get public_artifact_frame_path(artifact.public_id)
+    assert_includes response.body, "Published report", "a restore is live too"
     artifact.unpublish!
     get public_artifact_path(artifact.public_id)
     assert_response :not_found

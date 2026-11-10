@@ -40,7 +40,7 @@ class ArtifactsController < ApplicationController
       @artifact.update!(design_kit: kit) if kit_given
       @artifact.revise!(**data, author: Current.user.email)
     end
-    redirect_to @artifact, notice: "Version saved. The published version is unchanged."
+    redirect_to @artifact, notice: live_notice("Version saved.")
   rescue Artifact::Conflict, ActiveRecord::RecordInvalid => error
     @artifact.reload
     @version = @artifact.current_version
@@ -56,7 +56,7 @@ class ArtifactsController < ApplicationController
 
   def upload
     @artifact.revise!(expected_version: params[:expected_version], title: @artifact.title, content: @artifact.current_version.content, file: params.dig(:artifact, :file) || params[:file], author: Current.user.email)
-    redirect_to @artifact, notice: "File version saved."
+    redirect_to @artifact, notice: live_notice("File version saved.")
   rescue Artifact::Conflict, ActiveRecord::RecordInvalid => error
     redirect_to @artifact, alert: "Couldn't save the file. #{messages(error)}"
   end
@@ -64,7 +64,7 @@ class ArtifactsController < ApplicationController
   def publish
     @artifact.publish!(version_id: params.require(:version_id))
     return redirect_to public_artifact_path(@artifact.public_id) if params[:return_to] == "viewer"
-    redirect_to @artifact, notice: "This version is public. Anyone with the link can read it."
+    redirect_to @artifact, notice: "Public. Anyone with the link sees the latest version."
   end
 
   def unpublish
@@ -75,7 +75,7 @@ class ArtifactsController < ApplicationController
 
   def restore
     @artifact.restore!(version_id: params.require(:version_id), expected_version: params.require(:expected_version), author: Current.user.email)
-    redirect_to @artifact, notice: "Old version restored as a new private version."
+    redirect_to @artifact, notice: live_notice("Old version restored as a new version.")
   rescue Artifact::Conflict, ActiveRecord::RecordInvalid => error
     redirect_to @artifact, alert: "Couldn't restore. #{messages(error)}"
   end
@@ -135,6 +135,10 @@ class ArtifactsController < ApplicationController
 
   def artifact_params
     params.require(:artifact).permit(:title, :kind, :content, :expected_version, :design_kit_id, :file).tap { |data| data[:content] ||= "" }
+  end
+
+  def live_notice(message)
+    @artifact.published_version_id ? "#{message} It's live on the public link." : message
   end
 
   def messages(error)

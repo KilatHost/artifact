@@ -9,13 +9,13 @@ class ArtifactMcp
     [ "list_artifacts", "read", "List private workspace artifacts (100 per page)", { offset: { type: "integer", minimum: 0 } }, [] ],
     [ "get_artifact", "read", "Read an artifact and its current version", ID, %w[id] ],
     [ "create_artifact", "write", "Create a private document or HTML draft; reuse request_id only to retry identical input", { request_id: { type: "string", minLength: 1, maxLength: 128 }, title: STRING, kind: { type: "string", enum: %w[document html] }, content: STRING, design_kit_id: INTEGER }, %w[request_id title kind content] ],
-    [ "update_artifact", "write", "Revise a draft using optimistic version locking", ID.merge(title: STRING, content: STRING, expected_version: INTEGER), %w[id title content expected_version] ],
+    [ "update_artifact", "write", "Save a new version using optimistic version locking. If the artifact is public, the new version is live on its public_url at once", ID.merge(title: STRING, content: STRING, expected_version: INTEGER), %w[id title content expected_version] ],
     [ "artifact_history", "read", "Read immutable version history (100 per page)", ID.merge(offset: { type: "integer", minimum: 0 }), %w[id] ],
-    [ "restore_artifact", "write", "Restore an old version as a new draft", ID.merge(version_id: INTEGER, expected_version: INTEGER), %w[id version_id expected_version] ],
+    [ "restore_artifact", "write", "Restore an old version as a new version (live at once if the artifact is public)", ID.merge(version_id: INTEGER, expected_version: INTEGER), %w[id version_id expected_version] ],
     [ "list_design_kits", "read", "List workspace design kits (100 per page)", { offset: { type: "integer", minimum: 0 } }, [] ],
     [ "create_design_kit", "write", "Create a shared design kit", { name: STRING, tokens: { type: "object", properties: { font: STRING, background: STRING, foreground: STRING, accent: STRING }, additionalProperties: false } }, %w[name tokens] ],
     [ "update_design_kit", "write", "Update a shared design kit", ID.merge(name: STRING, tokens: { type: "object", properties: { font: STRING, background: STRING, foreground: STRING, accent: STRING }, additionalProperties: false }), %w[id name tokens] ],
-    [ "publish_artifact", "publish", "Publish a specified immutable snapshot publicly", ID.merge(version_id: INTEGER), %w[id version_id] ],
+    [ "publish_artifact", "publish", "Make the artifact public. Its public_url shows this version, then every later version as it is saved", ID.merge(version_id: INTEGER), %w[id version_id] ],
     [ "unpublish_artifact", "publish", "Remove public access to an artifact", ID, %w[id] ]
   ].freeze
   INPUT_KEYS = TOOL_SPECS.to_h { |name, _, _, properties, _| [ name, properties.keys ] }.freeze

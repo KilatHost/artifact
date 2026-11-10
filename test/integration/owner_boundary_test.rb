@@ -153,6 +153,13 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
     assert_match "attachment", response.headers["Content-Disposition"]
   end
 
+  test "a private artifact stays private when new versions are saved" do
+    @artifact.revise!(expected_version: 1, title: "Plan", content: "<p>v2</p>", author: "Agent")
+    assert_nil @artifact.reload.published_version_id
+    get public_artifact_path(@artifact.public_id)
+    assert_response :not_found
+  end
+
   test "revoking an OAuth client revokes all its tokens" do
     app = Doorkeeper::Application.create!(name: "Client", redirect_uri: "https://client.example/cb", scopes: "read", confidential: false)
     tokens = 2.times.map { Doorkeeper::AccessToken.create!(application: app, resource_owner_id: @owner.id, scopes: "read", expires_in: 3600) }

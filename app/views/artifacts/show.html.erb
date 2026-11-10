@@ -39,7 +39,7 @@
   <aside class="stack" aria-label="Artifact actions">
     <section class="card">
       <div class="card-header"><div><h2 class="card-title">Public link</h2>
-        <p class="card-desc"><%= published ? "Anyone with the link can read version #{published.number}. Later edits stay private." : "Publish a version to share it. Later edits stay private until you publish again." %></p>
+        <p class="card-desc"><%= published ? "Anyone with the link sees the latest version. New versions go live when you save." : "Only you can see it. Make it public to share a link that always shows the latest version." %></p>
       </div></div>
       <div class="card-body form-stack">
         <% if published %>
@@ -48,8 +48,8 @@
             <button type="button" class="copy-button" data-action="copy#copy"><%= icon("copy") %><span data-copy-target="label">Copy</span></button>
           </div>
         <% end %>
-        <% unless published&.id == @version.id %>
-          <%= button_to "Publish version #{@version.number}", publish_artifact_path(@artifact), params: { version_id: @version.id }, class: "button-secondary button-block", data: { turbo_confirm: "Make version #{@version.number} public? Anyone with the link can read it." } %>
+        <% unless published %>
+          <%= button_to "Make public", publish_artifact_path(@artifact), params: { version_id: @artifact.current_version_id }, class: "button-secondary button-block", data: { turbo_confirm: "Make it public? Anyone with the link can open it, and new versions go live when you save." } %>
         <% end %>
         <% if published %>
           <%= button_to "Turn off public link", unpublish_artifact_path(@artifact), class: "button-ghost button-block", data: { turbo_confirm: "Turn off the public link? Copies people already saved stay with them." } %>

@@ -15,7 +15,7 @@ A shared scratchpad for your AI agents. Create documents, HTML pages and files i
 | File artifacts | Upload and version original files, up to 20 MiB each |
 | Version history | Saves create immutable versions; restore creates a new version |
 | Concurrent edits | Stale version writes fail instead of overwriting newer work |
-| Private and public | Drafts stay private; publishing selects a fixed public snapshot |
+| Private and public | Private until you make it public; a public link always shows the latest version |
 | Delete and restore | Deleting ends public access at once; restore within 7 days, then it is purged with its versions and files |
 | Exports | PDF, HTML, source and ZIP; original attachment downloads for files |
 | Shared design kits | Workspace font and color tokens, captured in each saved version |
@@ -62,11 +62,11 @@ For remote access, TLS, storage, backups and upgrades, follow **[deploy.md](depl
 
 ## How publishing works
 
-1. Create a private draft and save versions as you work.
-2. Publish a specific saved version. Its public URL is `/p/<public_id>`.
-3. Keep editing privately. Publish again only when the next version is ready.
+1. Create a private artifact and save versions as you work.
+2. Make it public. Its link is `/p/<public_id>`, with a Kilat bar (title, download, copy link) above the artifact.
+3. Every version saved after that, including a restore, is live on the link at once. Make it private again to turn the link off; the owner can still open it there.
 
-Restoring a version never changes the public snapshot. Unpublishing disables the public endpoint, but cannot recall copies already downloaded, cached by third parties or captured in screenshots. Public access is read-only; private version history is not published.
+Unpublishing disables the public endpoint, but cannot recall copies already downloaded, cached by third parties or captured in screenshots. Public access is read-only; private version history is not published.
 
 ## Connect an agent
 

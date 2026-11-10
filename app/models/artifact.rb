@@ -93,12 +93,14 @@ class Artifact < ApplicationRecord
     errors.add(:design_kit, "must belong to this workspace") if design_kit && design_kit.workspace_id != workspace_id
   end
 
+  # A public artifact's link always shows its latest version (founder, 2026-11-11), so a new
+  # version goes live at once; a private artifact stays private.
   def append_version!(title:, kind:, content:, author:, file:, design_tokens: nil)
     tokens = design_tokens || (design_kit&.tokens || DesignKit::DEFAULT_TOKENS).merge("kit_version" => design_kit&.version, "kit_name" => design_kit&.name)
     version = versions.build(number: (current_version&.number || 0) + 1, title: title, kind: kind, content: content.to_s, author: author, design_tokens: tokens)
     version.file.attach(file || current_version.file.blob) if file || (kind == "file" && current_version&.file&.attached?)
     version.save!
-    update!(title: title, kind: kind, current_version: version)
+    update!(title: title, kind: kind, current_version: version, published_version: (version if published_version_id))
     version
   end
 end

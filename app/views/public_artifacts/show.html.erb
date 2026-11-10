@@ -44,7 +44,7 @@
               class: "switch", role: "switch", form_class: "viewer-switch",
               title: public_now ? "Make private" : "Make public",
               aria: { checked: public_now.to_s, label: public_now ? "Public: anyone with the link can open it. Make private" : "Private: only you can open it. Make public" },
-              form: { data: (public_now ? {} : { turbo_confirm: "Make version #{@artifact.current_version.number} public? Anyone with the link can open it." }) } do %><span class="switch-knob"></span><% end %>
+              form: { data: (public_now ? {} : { turbo_confirm: "Make it public? Anyone with the link can open it, and new versions go live when you save." }) } do %><span class="switch-knob"></span><% end %>
       <% end %>
       <% if public_now %>
         <div data-controller="copy">
