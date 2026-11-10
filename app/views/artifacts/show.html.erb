@@ -32,7 +32,7 @@
         </div>
         <%= link_to preview_artifact_path(@artifact, version_id: @version.id), target: "_blank", rel: "noopener", class: "button-ghost button-sm" do %>Open<%= icon("external") %><% end %>
       </div>
-      <iframe class="preview-frame" title="Preview of version <%= @version.number %>" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer" src="<%= preview_artifact_path(@artifact, version_id: @version.id) %>"></iframe>
+      <iframe class="preview-frame" title="Preview of version <%= @version.number %>" sandbox="<%= ArtifactRendering::SANDBOX %>" allow="clipboard-write" referrerpolicy="no-referrer" src="<%= preview_artifact_path(@artifact, version_id: @version.id) %>"></iframe>
     </section>
   </div>
 

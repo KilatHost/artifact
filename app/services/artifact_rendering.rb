@@ -10,6 +10,9 @@ class ArtifactRendering
   STYLE_HOSTS = %w[https://fonts.googleapis.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com].freeze
   FONT_HOSTS = %w[https://fonts.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com].freeze
 
+  # Matches KilatHost/web's viewer. Never add allow-same-origin or allow-top-navigation.
+  SANDBOX = "allow-scripts allow-forms allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads".freeze
+
   # Sent as a response header on every response that carries artifact content (preview and
   # frame). The sandbox has no allow-same-origin, so the page runs with an opaque origin: it
   # can run its own scripts but cannot read the app's cookies, storage or pages, and
@@ -18,7 +21,7 @@ class ArtifactRendering
     external = ENV.fetch("ARTIFACT_EXTERNAL_RESOURCES", "true") != "false"
     hosts = ->(list) { external ? " #{list.join(' ')}" : "" }
     [
-      "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox",
+      "sandbox #{SANDBOX}",
       "default-src 'none'",
       "script-src 'unsafe-inline' 'unsafe-eval'#{hosts.(SCRIPT_HOSTS)}",
       "style-src 'unsafe-inline'#{hosts.(STYLE_HOSTS)}",
@@ -29,8 +32,13 @@ class ArtifactRendering
     ].join("; ")
   end
 
+  # input is allowed only for Markdown task lists: anything but a disabled checkbox is removed.
   def self.sanitize_document(html)
-    Rails::HTML5::SafeListSanitizer.new.sanitize(html.to_s, tags: DOCUMENT_TAGS, attributes: DOCUMENT_ATTRIBUTES)
+    clean = Rails::HTML5::SafeListSanitizer.new.sanitize(html.to_s, tags: DOCUMENT_TAGS, attributes: DOCUMENT_ATTRIBUTES)
+    return clean unless clean.include?("<input")
+    fragment = Nokogiri::HTML5.fragment(clean)
+    fragment.css("input").each { |input| input["type"] == "checkbox" ? input["disabled"] = "" : input.remove }
+    fragment.to_html
   end
 
   # Markdown is stored as written and rendered on view, so agents read back what they wrote.
@@ -56,6 +64,6 @@ class ArtifactRendering
     else version.content
     end
     css = "body{font-family:#{tokens.fetch('font')};background:#{tokens.fetch('background')};color:#{tokens.fetch('foreground')};margin:0;line-height:1.618;overflow-wrap:anywhere}main{max-width:880px;margin:auto;padding:34px}a{color:#{tokens.fetch('accent')}}img,svg,video{max-width:100%}pre{white-space:pre-wrap}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}pre,:not(pre)>code{background:color-mix(in srgb,currentColor 7%,transparent);border-radius:6px}pre{padding:13px}:not(pre)>code{padding:1px 5px}blockquote{margin:21px 0;padding-left:21px;border-left:3px solid color-mix(in srgb,currentColor 25%,transparent)}hr{border:0;border-top:1px solid color-mix(in srgb,currentColor 20%,transparent);margin:34px 0}table{border-collapse:collapse;width:100%}td,th{border:1px solid color-mix(in srgb,currentColor 25%,transparent);padding:8px;text-align:left}li:has(>input[type=checkbox]){list-style:none;margin-left:-1.2em}li>input[type=checkbox]{margin-right:8px}@page{margin:15mm}@media print{main{padding:0}body{background:white;color:black}a{color:inherit}h1,h2,h3{break-after:avoid}tr,img{break-inside:avoid}}"
-    "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>#{title}</title><style>#{css}</style></head><body>#{body}</body></html>"
+    "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><base target=\"_blank\"><title>#{title}</title><style>#{css}</style></head><body>#{body}</body></html>"
   end
 end

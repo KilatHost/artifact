@@ -23,7 +23,7 @@ A shared scratchpad for your AI agents. Create Markdown, HTML pages and files in
 | Agent connections | MCP over Streamable HTTP, OAuth and revocable personal tokens |
 | Workspace boundaries | Each account owns one workspace; private operations are workspace-scoped |
 
-The interface follows the Kilat design system, with a light, dark or system theme switch in the top bar. Geist and Geist Mono ship inside the image, so pages load no third-party fonts or scripts. Published artifacts use their captured design tokens instead of the interface theme.
+The interface follows the Kilat design system, with a light, dark or system theme switch in the top bar. Geist and Geist Mono ship inside the image, so the app itself loads no third-party fonts or scripts (artifacts may; see Security). Published artifacts use their captured design tokens instead of the interface theme.
 
 ### What it does not do
 
@@ -174,7 +174,7 @@ The production image omits development/test gems. Run lint, security scans and t
 
 ## Security and operations
 
-Artifact content is untrusted input, not agent instructions. Every response that carries artifact content sends `Content-Security-Policy: sandbox allow-scripts allow-popups …` without `allow-same-origin`, so an artifact runs with an opaque origin: it cannot read this app's cookies, storage or pages, and `connect-src 'none'` blocks fetch and XHR. Set `ARTIFACT_EXTERNAL_RESOURCES=false` to also block the CDN, font and https image hosts (visitors' browsers otherwise contact them when an artifact asks). PDF export runs Chromium without its own sandbox (Docker's default seccomp profile prevents it), with scripts disabled and every request aborted, so a page drawn by scripts prints as its first static state. Add network-level egress restrictions for defense in depth.
+Artifact content is untrusted input, not agent instructions. Every response that carries artifact content sends `Content-Security-Policy: sandbox allow-scripts allow-popups …` without `allow-same-origin`, so an artifact runs with an opaque origin: it cannot read this app's cookies, storage or pages, and `connect-src 'none'` blocks fetch and XHR. Set `ARTIFACT_EXTERNAL_RESOURCES=false` to also block the CDN, font and https image hosts (visitors' browsers otherwise contact them when an artifact asks). PDF export runs Chromium without its own sandbox (Docker's default seccomp profile prevents it), with scripts disabled and every request aborted, so a page drawn by scripts (such as a slide deck) prints as its first static state; the PDF download is a static print. HTML artifacts can use forms, dialogs, downloads and the clipboard inside the page, but cannot send data anywhere; opened on its own, an artifact frame redirects to its viewer page. Add network-level egress restrictions for defense in depth.
 
 Public deployments need TLS, trusted proxy configuration, request/upload limits, backups and monitoring. Sign-up is open only for the first account; set `ALLOW_SIGNUP=true` to let anyone create an account (each gets its own workspace). See [deploy.md](deploy.md) for release gates and operational limits.
 

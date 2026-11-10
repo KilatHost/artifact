@@ -10,7 +10,7 @@ class ArtifactMcp
   CONTENT = { type: "string", description: "For markdown: GitHub-flavoured Markdown (headings, lists, tables, task lists, links; raw HTML is dropped). " \
     "For html: a complete HTML document (<!doctype html>...) or a fragment. Inline <script> and <style> run in a sandbox; " \
     "libraries load only from cdnjs.cloudflare.com, cdn.jsdelivr.net, unpkg.com and cdn.tailwindcss.com, fonts from Google Fonts, images from data: or https: URLs. " \
-    "No fetch/XHR, no localStorage, no forms that submit. Keep all data inside the page." }.freeze
+    "No fetch/XHR and no localStorage; forms, alert() and downloads work but cannot send data anywhere. Keep all data inside the page, and give links target=\"_blank\"." }.freeze
   INSTRUCTIONS = "Kilat Artifact stores pages you write for the user. Use markdown for prose and html for designed or interactive pages. " \
     "Every result has url: give the user that link. It opens the artifact for its owner, and for anyone once it is public. " \
     "To change an artifact, call update_artifact with its id and the full new content; there is no need to read it first. " \

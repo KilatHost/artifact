@@ -14,7 +14,10 @@ class PublicArtifactsController < ActionController::Base
     response.headers["X-Robots-Tag"] = "noindex, nofollow"
   end
 
+  # The frame is only meant inside the viewer. Opened as a page of its own, an artifact's
+  # script could send visitors anywhere from this domain, so send them to the viewer.
   def frame
+    return redirect_to(public_artifact_path(@artifact.public_id)) if request.headers["Sec-Fetch-Dest"] == "document"
     raise ActiveRecord::RecordNotFound if @version.kind == "file"
     response.headers["Content-Security-Policy"] = ArtifactRendering.content_security_policy
     render html: ArtifactRendering.html(@version).html_safe, layout: false

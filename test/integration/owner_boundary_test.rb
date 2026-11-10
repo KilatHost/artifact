@@ -190,12 +190,22 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
       get path
       assert_response :success
       policy = response.headers["Content-Security-Policy"]
-      assert_match(/\Asandbox allow-scripts allow-popups allow-popups-to-escape-sandbox;/, policy, path)
+      assert policy.start_with?("sandbox #{ArtifactRendering::SANDBOX};"), path
+      refute_includes policy, "allow-top-navigation", path
       refute_includes policy, "allow-same-origin", path
       refute_includes policy.sub(/frame-ancestors [^;]*/, ""), "'self'", path
       assert_includes policy, "connect-src 'none'", path
       assert response.body.start_with?("<!doctype html><html><head><title>Deck</title>"), "a full HTML document is served as written"
     end
+  end
+
+  test "the frame opened as a page of its own goes to the viewer" do
+    @artifact.publish!
+    get public_artifact_frame_path(@artifact.public_id), headers: { "Sec-Fetch-Dest" => "document" }
+    assert_redirected_to public_artifact_path(@artifact.public_id)
+    get public_artifact_frame_path(@artifact.public_id), headers: { "Sec-Fetch-Dest" => "iframe" }
+    assert_response :success
+    assert_includes response.body, '<base target="_blank">', "links in documents open in a new tab"
   end
 
   test "markdown renders safely and keeps its source" do
@@ -205,6 +215,10 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
     %w[<h1>Plan</h1> <strong>bold</strong> <hr> <table> <td>1</td>].each { |fragment| assert_includes rendered, fragment }
     refute_includes rendered, "<script"
     refute_includes rendered, "javascript:"
+    task = ArtifactRendering.markdown("- [x] done\n\n<input type=password>")
+    assert_includes ArtifactRendering.sanitize_document('<input type="checkbox" checked><input type="password"><input>'), 'type="checkbox"'
+    refute_includes ArtifactRendering.sanitize_document('<input type="password"><input type="text">'), "<input"
+    assert_includes task, "disabled"
   end
 
   test "sign-up closes after the first account unless ALLOW_SIGNUP is set" do

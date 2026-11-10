@@ -50,7 +50,7 @@ docker compose ps
 
 Compose starts a private PostgreSQL 17 service, waits for its health check and starts Rails. The web entrypoint runs `db:prepare`, creating or migrating the configured database. Uploaded files and PostgreSQL data use separate named volumes.
 
-Open <http://localhost:3000>, then create the first account. There is no seeded administrator or default password. Each account owns one workspace. After the first account, sign-up is closed unless you set `ALLOW_SIGNUP=true`.
+Open <http://localhost:3000>, then create the first account. There is no seeded administrator or default password. Each account owns one workspace. After the first account, sign-up is closed unless you set `ALLOW_SIGNUP=true`. Create your account before you expose a new instance publicly: the first visitor to sign up becomes an owner.
 
 For a remote host without a public proxy yet, use an SSH tunnel:
 

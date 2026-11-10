@@ -60,6 +60,6 @@
       </div>
     </main>
   <% else %>
-    <iframe class="viewer-frame" src="<%= public_artifact_frame_path(@artifact.public_id) %>" title="<%= @version.title %>" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"></iframe>
+    <iframe class="viewer-frame" src="<%= public_artifact_frame_path(@artifact.public_id) %>" title="<%= @version.title %>" sandbox="<%= ArtifactRendering::SANDBOX %>" allow="clipboard-write" referrerpolicy="no-referrer"></iframe>
   <% end %>
 </div>
