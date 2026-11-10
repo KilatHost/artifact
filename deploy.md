@@ -50,7 +50,7 @@ docker compose ps
 
 Compose starts a private PostgreSQL 17 service, waits for its health check and starts Rails. The web entrypoint runs `db:prepare`, creating or migrating the configured database. Uploaded files and PostgreSQL data use separate named volumes.
 
-Open <http://localhost:3000>, then create an account. There is no seeded administrator or default password. Each account owns one workspace. Signup is open; do not expose a private instance expecting invitation-only behavior.
+Open <http://localhost:3000>, then create the first account. There is no seeded administrator or default password. Each account owns one workspace. After the first account, sign-up is closed unless you set `ALLOW_SIGNUP=true`.
 
 For a remote host without a public proxy yet, use an SSH tunnel:
 
@@ -74,7 +74,7 @@ Configure the proxy to:
 - Terminate valid public TLS and redirect HTTP to HTTPS.
 - Preserve `Host` and set trusted `X-Forwarded-Proto: https`.
 - Route `/mcp`, `/oauth/*`, `/.well-known/*`, `/p/*` and normal app paths without rewriting them.
-- Never cache authenticated pages, OAuth responses, MCP responses or public snapshots. Unpublish depends on endpoints being rechecked.
+- Never cache authenticated pages, OAuth responses, MCP responses or public artifact pages. A public link follows the latest version, and unpublish depends on endpoints being rechecked.
 - Thruster in the image refuses request bodies over 22 MiB (`MAX_REQUEST_BODY`). Set the same or a lower limit at the proxy so oversized uploads stop there.
 - Set bounded request timeouts that permit expected PDF renders; apply rate and connection limits.
 
@@ -172,10 +172,11 @@ Before using real customer data:
 - [ ] Linux image builds with Ruby 3.3.13; migrations and normal startup succeed.
 - [ ] HTTPS works without redirect loops; cookies and host checks behave correctly.
 - [ ] Two accounts cannot read or modify each other's artifacts, versions, files, kits or connections.
-- [ ] Document/HTML/file create and edit work; stale edits are rejected.
-- [ ] Public snapshots stay unchanged after draft edits; unpublish removes access.
+- [ ] Markdown/HTML/rich-text/file create and edit work; stale browser edits are rejected.
+- [ ] A public link shows each new version at once; unpublish removes access for everyone but the owner.
+- [ ] An HTML artifact's scripts run, while `document.cookie` and `fetch('/artifacts')` inside it fail.
 - [ ] Original file downloads match uploaded bytes after a container restart.
-- [ ] PDF renders with Chromium sandbox enabled and no artifact-controlled network access.
+- [ ] PDF renders inside the container with no artifact-controlled network access.
 - [ ] HTML/ZIP/source downloads contain the selected saved version.
 - [ ] OAuth registration, browser consent, PKCE, refresh and revocation work through the actual proxy.
 - [ ] Read/write/publish permissions remain distinct in a real MCP client.
@@ -197,7 +198,7 @@ Logs can still contain operational metadata. Do not share raw logs before checki
 
 Monitor app errors and latency, database connections/storage, upload volume, backup age and restore results, Chromium crashes/render duration, memory pressure and outbound traffic. Alert on disk exhaustion before PostgreSQL or uploads fail.
 
-PDF export runs synchronously, one render per web process; a second request gets a 503 asking to try again. It is not queued, quota-controlled or cached. Set external request limits before broad public access. Do not disable Chromium's sandbox with `--no-sandbox` to bypass host incompatibility; use a compatible host/kernel configuration and repeat the security checks.
+PDF export runs synchronously, one render per web process; a second request gets a 503 asking to try again. It is not queued, quota-controlled or cached. Set external request limits before broad public access. Chromium runs with `--no-sandbox` because Docker's default seccomp profile stops its sandbox; scripts are disabled and all requests aborted during the render, and the container runs as a non-root user.
 
 ### Managed cloud readiness
 

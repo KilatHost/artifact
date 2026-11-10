@@ -1,6 +1,6 @@
 # Kilat Artifact
 
-A shared scratchpad for your AI agents. Create documents, HTML pages and files in one workspace; edit them in your browser or through MCP; publish only the version you choose.
+A shared scratchpad for your AI agents. Create Markdown, HTML pages and files in one workspace; edit them in your browser or through MCP; share one link that always shows the latest version.
 
 **Open source, self-hostable, Apache-2.0.** The same application is intended to power Kilat Cloud. A managed cloud service is not available from this repository yet.
 
@@ -10,8 +10,9 @@ A shared scratchpad for your AI agents. Create documents, HTML pages and files i
 
 | Capability | Behavior |
 | --- | --- |
-| Document scratchpad | Rich-text editing with Trix; content stored as HTML |
-| HTML scratchpad | Source editing with sandboxed preview; no scripts or remote resources |
+| Markdown | GitHub-flavoured Markdown, stored as written and rendered on view; raw HTML is dropped |
+| HTML | Full pages or fragments, shown as written. Scripts run in a sandbox with no access to the app; libraries load from cdnjs, jsdelivr, unpkg and the Tailwind CDN |
+| Rich text | Browser editing with Trix; content stored as sanitized HTML |
 | File artifacts | Upload and version original files, up to 20 MiB each |
 | Version history | Saves create immutable versions; restore creates a new version |
 | Concurrent edits | Stale version writes fail instead of overwriting newer work |
@@ -29,9 +30,9 @@ The interface follows the Kilat design system, with a light, dark or system them
 - No automatic import or synchronization of Claude Artifacts, ChatGPT Canvas, Gemini Canvas or Manus workspaces. Agents must explicitly use this server's tools.
 - No built-in AI chat or required model API key. Your AI client supplies the intelligence and pays its own model costs.
 - No autosave, real-time co-editing, arbitrary website visual editor or server-side execution of artifact code.
-- No Markdown editor/import pipeline, inline document attachments, team invitations or billing.
+- No live Markdown preview while typing, inline document attachments, team invitations or billing.
 - Design kits currently contain fonts and colors, not a full component/template system. Freeform HTML can override those styles; consistent agent output is not guaranteed by tokens alone.
-- Generic file artifacts are stored and downloaded, not converted into editable documents. Their public URL downloads the published original file; document and HTML public URLs render a page.
+- Generic file artifacts are stored and downloaded, not converted into editable documents. Their link shows a download page; Markdown, HTML and rich-text links render the page.
 
 ## Quick start
 
@@ -114,18 +115,19 @@ Scopes are independent. `write` does not include `publish`, and does not implici
 | Tool | Scope | Important inputs |
 | --- | --- | --- |
 | `list_artifacts` | `read` | Optional `offset`; 100 results per page |
-| `get_artifact` | `read` | Artifact `id` |
+| `get_artifact` | `read` | Artifact `id`; optional `version` number |
 | `create_artifact` | `write` | `request_id`, `title`, `kind`, `content`; optional `design_kit_id` |
-| `update_artifact` | `write` | `id`, `title`, `content`, `expected_version` |
+| `update_artifact` | `write` | `id`, `content`; optional `title`, `kind`, `expected_version` |
 | `artifact_history` | `read` | `id`; optional `offset`; 100 results per page |
-| `restore_artifact` | `write` | `id`, `version_id`, `expected_version` |
+| `restore_artifact` | `write` | `id`, `version` number |
+| `delete_artifact` | `write` | `id`; restorable in the web app for 7 days |
 | `list_design_kits` | `read` | Optional `offset`; 100 results per page |
 | `create_design_kit` | `write` | `name`, `tokens` |
 | `update_design_kit` | `write` | Kit `id`, `name`, `tokens` |
-| `publish_artifact` | `publish` | `id`, `version_id` |
+| `publish_artifact` | `publish` | `id` |
 | `unpublish_artifact` | `publish` | `id` |
 
-`create_artifact` accepts `document` or `html`. Use a stable `request_id` of 1–128 characters when retrying the same creation: identical requests return the original result; changed content under the same ID is rejected. Updates require the current **version number**, not the version record ID. On conflict, fetch the latest content and reconcile before retrying.
+`create_artifact` accepts `markdown` (prose) or `html` (designed or interactive pages). Every result carries `url`, the one link to give people: the owner can open it while private, anyone once public. `edit_url` opens the editor. Use a stable `request_id` of 1–128 characters when retrying the same creation: identical requests return the original result; changed content under the same ID is rejected. `update_artifact` saves on top of the latest version unless you pass `expected_version`, in which case a newer edit is refused. The server also sends these rules to clients as MCP instructions.
 
 MCP exposes file metadata, not binary upload/download tools. Browser uploads and authorized HTTP downloads handle files.
 
@@ -172,9 +174,9 @@ The production image omits development/test gems. Run lint, security scans and t
 
 ## Security and operations
 
-Artifact content is untrusted input, not agent instructions. Previews use sandboxing and restrictive content policies; PDF rendering disables script execution and aborts intercepted requests. Keep Chromium's sandbox enabled and add network-level egress restrictions for defense in depth.
+Artifact content is untrusted input, not agent instructions. Every response that carries artifact content sends `Content-Security-Policy: sandbox allow-scripts allow-popups …` without `allow-same-origin`, so an artifact runs with an opaque origin: it cannot read this app's cookies, storage or pages, and `connect-src 'none'` blocks fetch and XHR. Set `ARTIFACT_EXTERNAL_RESOURCES=false` to also block the CDN, font and https image hosts (visitors' browsers otherwise contact them when an artifact asks). PDF export runs Chromium without its own sandbox (Docker's default seccomp profile prevents it), with scripts disabled and every request aborted, so a page drawn by scripts prints as its first static state. Add network-level egress restrictions for defense in depth.
 
-Public deployments need TLS, trusted proxy configuration, request/upload limits, backups and monitoring. Open signup currently creates a new workspace for each account; there is no invitation-only signup switch. A private installation should restrict access at its proxy or network boundary. See [deploy.md](deploy.md) for release gates and operational limits.
+Public deployments need TLS, trusted proxy configuration, request/upload limits, backups and monitoring. Sign-up is open only for the first account; set `ALLOW_SIGNUP=true` to let anyone create an account (each gets its own workspace). See [deploy.md](deploy.md) for release gates and operational limits.
 
 Report suspected security issues privately to repository maintainers; do not publish credentials or a working exploit against customer data.
 

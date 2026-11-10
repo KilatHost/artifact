@@ -3,7 +3,7 @@ class ArtifactVersion < ApplicationRecord
   belongs_to :artifact
   has_one_attached :file
   validates :title, :author, presence: true, length: { maximum: 200 }
-  validates :kind, inclusion: { in: %w[document html file] }
+  validates :kind, inclusion: { in: Artifact::KINDS }
   validates :number, numericality: { only_integer: true, greater_than: 0 }
   validates :content, length: { maximum: 1_000_000 }
   validate :valid_file

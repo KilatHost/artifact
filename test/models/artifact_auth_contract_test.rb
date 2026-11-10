@@ -18,14 +18,14 @@ class ArtifactAuthContractTest < ActiveSupport::TestCase
     artifact = first.artifacts.create_draft!(title: "Private", kind: "document", content: "secret", author: "Test")
     assert_raises(ActiveRecord::RecordNotFound) { ArtifactMcp.perform("get_artifact", second, { id: artifact.id }) }
     tool = ArtifactMcp::TOOLS.find { |entry| entry.name_value == "publish_artifact" }
-    response = tool.call(id: artifact.id, version_id: artifact.current_version_id, server_context: { workspace: first, scopes: [ "write" ] })
+    response = tool.call(id: artifact.id, server_context: { workspace: first, scopes: [ "write" ] })
     assert response.error?
     assert_nil artifact.reload.published_version_id
   end
 
   test "MCP create retries return original artifact and reject changed input" do
     workspace = User.create!(email: "retry-check@example.test", password: "a-long-test-password").create_workspace!(name: "Retry")
-    input = { request_id: "stable-request", title: "Draft", kind: "document", content: "Hello" }
+    input = { request_id: "stable-request", title: "Draft", kind: "markdown", content: "Hello" }
     first = ArtifactMcp.perform("create_artifact", workspace, input.dup)
     repeated = ArtifactMcp.perform("create_artifact", workspace, input.dup)
     assert_equal first["id"], repeated["id"]

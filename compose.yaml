@@ -9,6 +9,8 @@ services:
       DATABASE_URL: postgres://kilat:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/kilat_artifact_production
       APP_HOST: ${APP_HOST:-localhost}
       FORCE_SSL: ${FORCE_SSL:-false}
+      ALLOW_SIGNUP: ${ALLOW_SIGNUP:-false}
+      ARTIFACT_EXTERNAL_RESOURCES: ${ARTIFACT_EXTERNAL_RESOURCES:-true}
       BROWSER_PATH: /usr/bin/chromium
       RAILS_LOG_TO_STDOUT: "true"
     depends_on:

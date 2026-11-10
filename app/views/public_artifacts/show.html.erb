@@ -16,9 +16,6 @@
         <summary title="<%= @version.title %>"><strong><%= @version.title %></strong><%= icon("chevron-down") %></summary>
         <div class="menu-panel">
           <p>Version <%= @version.number %> · saved <%= @version.created_at.utc.strftime("%-d %b %Y") %></p>
-          <% if @owner && public_now && @artifact.current_version_id != @version.id %>
-            <p>Version <%= @artifact.current_version.number %> is newer and still private.</p>
-          <% end %>
           <% if @owner %>
             <%= link_to "Open in editor", artifact_path(@artifact), class: "button-secondary button-block" %>
           <% else %>
@@ -40,7 +37,7 @@
       <% if @owner %>
         <span class="viewer-visibility"><%= public_now ? "Anyone with the link" : "Only you" %></span>
         <%= button_to (public_now ? unpublish_artifact_path(@artifact) : publish_artifact_path(@artifact)),
-              params: { return_to: "viewer" }.merge(public_now ? {} : { version_id: @artifact.current_version_id }),
+              params: { return_to: "viewer" },
               class: "switch", role: "switch", form_class: "viewer-switch",
               title: public_now ? "Make private" : "Make public",
               aria: { checked: public_now.to_s, label: public_now ? "Public: anyone with the link can open it. Make private" : "Private: only you can open it. Make public" },
@@ -63,6 +60,6 @@
       </div>
     </main>
   <% else %>
-    <iframe class="viewer-frame" src="<%= public_artifact_frame_path(@artifact.public_id) %>" title="<%= @version.title %>" sandbox referrerpolicy="no-referrer"></iframe>
+    <iframe class="viewer-frame" src="<%= public_artifact_frame_path(@artifact.public_id) %>" title="<%= @version.title %>" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" referrerpolicy="no-referrer"></iframe>
   <% end %>
 </div>

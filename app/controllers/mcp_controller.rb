@@ -17,7 +17,7 @@ class McpController < ActionController::API
       return render json: { error: "invalid_token" }, status: :unauthorized
     end
 
-    server = MCP::Server.new(name: "kilat", version: "1.0.0", tools: ArtifactMcp::TOOLS, server_context: { workspace: workspace, scopes: scopes, base_url: request.base_url })
+    server = MCP::Server.new(name: "kilat", version: "1.0.0", instructions: ArtifactMcp::INSTRUCTIONS, tools: ArtifactMcp::TOOLS, server_context: { workspace: workspace, scopes: scopes, base_url: request.base_url })
     transport = MCP::Server::Transports::StreamableHTTPTransport.new(server, stateless: true, enable_json_response: true, serve_subscriptions_listen: false, allowed_hosts: [ request.host_with_port ])
     status, headers, body = transport.call(request.env)
     headers.each { |key, value| response.headers[key] = value unless key.downcase == "content-length" }

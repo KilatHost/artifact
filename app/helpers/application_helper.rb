@@ -45,7 +45,7 @@ module ApplicationHelper
   end
 
   def kind_label(kind)
-    { "document" => "Document", "html" => "HTML", "file" => "File" }.fetch(kind, kind)
+    { "markdown" => "Markdown", "document" => "Rich text", "html" => "HTML", "file" => "File" }.fetch(kind, kind)
   end
 
   def artifact_export_formats(version)

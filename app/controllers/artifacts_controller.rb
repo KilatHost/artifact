@@ -62,7 +62,7 @@ class ArtifactsController < ApplicationController
   end
 
   def publish
-    @artifact.publish!(version_id: params.require(:version_id))
+    @artifact.publish!
     return redirect_to public_artifact_path(@artifact.public_id) if params[:return_to] == "viewer"
     redirect_to @artifact, notice: "Public. Anyone with the link sees the latest version."
   end
@@ -92,7 +92,7 @@ class ArtifactsController < ApplicationController
 
   def preview
     version = selected_version
-    response.headers["Content-Security-Policy"] = "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'"
+    response.headers["Content-Security-Policy"] = ArtifactRendering.content_security_policy
     render html: ArtifactRendering.html(version).html_safe, layout: false
   end
 
@@ -109,7 +109,7 @@ class ArtifactsController < ApplicationController
     when "html"
       send_data ArtifactRendering.html(version), filename: "#{name}.html", type: "text/html", disposition: "attachment"
     when "source"
-      send_data version.content, filename: "#{name}.#{version.kind == 'html' ? 'html' : 'txt'}", type: "text/plain", disposition: "attachment"
+      send_data version.content, filename: "#{name}.#{ArtifactExports.source_extension(version)}", type: "text/plain", disposition: "attachment"
     when "file"
       raise ActiveRecord::RecordNotFound unless version.file.attached?
       send_blob_stream version.file.blob, disposition: "attachment"

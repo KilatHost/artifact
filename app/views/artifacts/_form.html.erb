@@ -4,7 +4,7 @@
   <% if artifact.persisted? %><%= form.hidden_field :expected_version, value: artifact.current_version.number %><% end %>
   <div class="form-grid">
     <div class="field-group"><%= form.label :title, class: "field-label" %><%= form.text_field :title, value: version&.title || artifact.title, required: true, maxlength: 200, class: "field" %></div>
-    <div class="field-group"><%= form.label :kind, "Format", class: "field-label" %><%= form.select :kind, [ [ "Document", "document" ], [ "HTML", "html" ], [ "File", "file" ] ], { selected: kind }, class: "field", data: { editor_target: "kind", action: "editor#changeKind" } %></div>
+    <div class="field-group"><%= form.label :kind, "Format", class: "field-label" %><%= form.select :kind, [ [ "Rich text", "document" ], [ "Markdown", "markdown" ], [ "HTML", "html" ], [ "File", "file" ] ], { selected: kind }, class: "field", data: { editor_target: "kind", action: "editor#changeKind" } %></div>
     <div class="field-group"><%= form.label :design_kit_id, "Design kit", class: "field-label" %><%= form.collection_select :design_kit_id, Current.workspace.design_kits.order(:name), :id, :name, { include_blank: "Default" }, class: "field" %></div>
   </div>
 
@@ -14,10 +14,16 @@
     <p class="field-hint" data-editor-target="status" role="status">To attach a file, make a File artifact.</p>
   </section>
 
+  <section data-editor-target="markdown" <%= "hidden" unless kind == "markdown" %>>
+    <label for="markdown-content" class="field-label">Markdown</label>
+    <textarea id="markdown-content" name="artifact[content]" class="field source-editor" rows="22" spellcheck="true" data-editor-target="markdownInput" <%= "disabled" unless kind == "markdown" %>><%= content %></textarea>
+    <p class="field-hint">Headings, lists, tables, task lists and links. Raw HTML is left out.</p>
+  </section>
+
   <section data-editor-target="html" <%= "hidden" unless kind == "html" %>>
     <label for="html-content" class="field-label">HTML source</label>
     <textarea id="html-content" name="artifact[content]" class="field source-editor" rows="22" spellcheck="false" data-editor-target="htmlInput" <%= "disabled" unless kind == "html" %>><%= content %></textarea>
-    <p class="field-hint">The preview runs without scripts or outside resources.</p>
+    <p class="field-hint">A full page or a fragment. Scripts run in a sandbox with no access to this app, and can load libraries from cdnjs, jsdelivr, unpkg and the Tailwind CDN.</p>
   </section>
 
   <section data-editor-target="file" <%= "hidden" unless kind == "file" %>>
@@ -30,6 +36,6 @@
 
   <div class="form-actions">
     <%= form.submit artifact.persisted? ? "Save version" : "Create draft", class: "button-primary" %>
-    <span class="caption">Saving keeps it private.</span>
+    <span class="caption"><%= artifact.published_version_id ? "Saving makes it live on the public link." : "Saving keeps it private." %></span>
   </div>
 <% end %>

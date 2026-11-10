@@ -8,5 +8,5 @@
       <%= form.submit "Sign in", class: "button-primary button-block" %>
     <% end %>
   </div></div>
-  <p class="auth-foot">New here? <%= link_to "Create an account", new_registration_path %></p>
+  <% if RegistrationsController.open? %><p class="auth-foot">New here? <%= link_to "Create an account", new_registration_path %></p><% end %>
 </section>

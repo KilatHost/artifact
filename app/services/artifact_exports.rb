@@ -27,11 +27,15 @@ class ArtifactExports
     browser&.quit
   end
 
+  def self.source_extension(version)
+    { "html" => "html", "markdown" => "md" }.fetch(version.kind, "txt")
+  end
+
   def self.zip(version)
     Zip::OutputStream.write_buffer do |zip|
       zip.put_next_entry("index.html")
       zip.write(ArtifactRendering.html(version))
-      zip.put_next_entry("source.#{version.kind == 'html' ? 'html' : 'txt'}")
+      zip.put_next_entry("source.#{source_extension(version)}")
       zip.write(version.content)
       zip.put_next_entry("manifest.json")
       zip.write({ artifact_id: version.artifact_id, version: version.number, title: version.title, kind: version.kind, design_tokens: version.design_tokens }.to_json)

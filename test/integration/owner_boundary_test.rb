@@ -72,7 +72,7 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
     sign_in @owner
     file = Rack::Test::UploadedFile.new(StringIO.new("bytes"), "text/plain", original_filename: "notes.txt")
     artifact = @workspace.artifacts.create_draft!(title: "File", kind: "file", content: "", author: @owner.email, file: file)
-    artifact.publish!(version_id: artifact.current_version_id)
+    artifact.publish!
     blob = artifact.current_version.file.blob
 
     post archive_artifact_path(artifact)
@@ -106,22 +106,44 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
   end
 
   test "MCP ignores keys a tool does not declare" do
-    result = ArtifactMcp.perform("update_artifact", @workspace, { id: @artifact.id, title: "T", content: "<p>c</p>", expected_version: 1, author: "Spoofed", kind: "html" })
-    assert_equal "MCP", result["author"]
-    assert_equal "document", result["kind"]
+    ArtifactMcp.perform("update_artifact", @workspace, { id: @artifact.id, content: "<p>c</p>", author: "Spoofed", workspace_id: 999 })
+    assert_equal "MCP", @artifact.reload.current_version.author
+    assert_equal @workspace.id, @artifact.workspace_id
   end
 
-  test "MCP results carry the editor link, and the public link only while published" do
+  test "an agent succeeds first try: create, update without reading, publish, change kind, delete" do
     base = "https://artifact.example"
-    draft = ArtifactMcp.perform("get_artifact", @workspace, { id: @artifact.id }, base_url: base)
-    assert_equal "#{base}/artifacts/#{@artifact.id}", draft["url"]
-    assert_nil draft["public_url"]
-    published = ArtifactMcp.perform("publish_artifact", @workspace, { id: @artifact.id, version_id: @artifact.current_version_id }, base_url: base)
-    assert_equal "#{base}/p/#{@artifact.public_id}", published["public_url"]
+    perform = ->(tool, input) { ArtifactMcp.perform(tool, @workspace, input, base_url: base) }
+    created = perform.("create_artifact", { request_id: "r1", title: "Deck", kind: "markdown", content: "# Plan\n\n- one" })
+    assert_equal "#{base}/p/#{Artifact.find(created["id"]).public_id}", created["url"]
+    assert_equal 1, created["version"]
+    assert_equal false, created["public"]
+    updated = perform.("update_artifact", { id: created["id"], content: "# Plan\n\n- two" })
+    assert_equal 2, updated["version"]
+    assert_equal "Deck", updated["title"]
+    published = perform.("publish_artifact", { id: created["id"] })
+    assert published["public"]
+    get URI(created["url"]).path + "/frame"
+    assert_response :success
+    assert_includes response.body, "<li>two</li>"
+    assert_raises(Artifact::Conflict) { perform.("update_artifact", { id: created["id"], content: "x", expected_version: 1 }) }
+    html = perform.("update_artifact", { id: created["id"], kind: "html", content: "<!doctype html><html><body><p id=x></p><script>x.textContent='ran'</script></body></html>" })
+    assert_equal "html", html["kind"]
+    history = perform.("artifact_history", { id: created["id"] })
+    assert_equal [ 3, 2, 1 ], history.map { |v| v["number"] }
+    refute history.first.key?("content")
+    assert_equal "# Plan\n\n- one", perform.("get_artifact", { id: created["id"], version: 1 })["content"]
+    perform.("restore_artifact", { id: created["id"], version: 2 })
+    assert_equal 4, Artifact.find(created["id"]).current_version.number
+    perform.("delete_artifact", { id: created["id"] })
+    get URI(created["url"]).path
+    assert_response :not_found
   end
 
   test "the viewer shows a private artifact and its switch only to the owner" do
     get public_artifact_path(@artifact.public_id)
+    assert_redirected_to new_session_path, "signed-out visitors are sent to sign in, then back"
+    get public_artifact_frame_path(@artifact.public_id)
     assert_response :not_found
     sign_in @intruder
     get public_artifact_path(@artifact.public_id)
@@ -134,7 +156,7 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "Only you"
     assert_includes response.body, 'role="switch"'
-    post publish_artifact_path(@artifact), params: { version_id: @artifact.current_version_id, return_to: "viewer" }
+    post publish_artifact_path(@artifact), params: { return_to: "viewer" }
     assert_redirected_to public_artifact_path(@artifact.public_id)
     assert_equal @artifact.current_version_id, @artifact.reload.published_version_id
     post unpublish_artifact_path(@artifact), params: { return_to: "viewer" }
@@ -143,7 +165,7 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
   end
 
   test "visitors of a published artifact can download it but get no switch" do
-    @artifact.publish!(version_id: @artifact.current_version_id)
+    @artifact.publish!
     get public_artifact_path(@artifact.public_id)
     assert_response :success
     refute_includes response.body, 'role="switch"'
@@ -156,8 +178,43 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
   test "a private artifact stays private when new versions are saved" do
     @artifact.revise!(expected_version: 1, title: "Plan", content: "<p>v2</p>", author: "Agent")
     assert_nil @artifact.reload.published_version_id
-    get public_artifact_path(@artifact.public_id)
+    get public_artifact_frame_path(@artifact.public_id)
     assert_response :not_found
+  end
+
+  test "artifact content runs in an opaque-origin sandbox on every response that carries it" do
+    html = @workspace.artifacts.create_draft!(title: "Deck", kind: "html", content: "<!doctype html><html><head><title>Deck</title></head><body><script>document.title='x'</script></body></html>", author: "Agent")
+    html.publish!
+    sign_in @owner
+    [ preview_artifact_path(html), public_artifact_frame_path(html.public_id) ].each do |path|
+      get path
+      assert_response :success
+      policy = response.headers["Content-Security-Policy"]
+      assert_match(/\Asandbox allow-scripts allow-popups allow-popups-to-escape-sandbox;/, policy, path)
+      refute_includes policy, "allow-same-origin", path
+      refute_includes policy.sub(/frame-ancestors [^;]*/, ""), "'self'", path
+      assert_includes policy, "connect-src 'none'", path
+      assert response.body.start_with?("<!doctype html><html><head><title>Deck</title>"), "a full HTML document is served as written"
+    end
+  end
+
+  test "markdown renders safely and keeps its source" do
+    md = @workspace.artifacts.create_draft!(title: "Brief", kind: "markdown", content: "# Plan\n\n- **bold**\n\n---\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n<script>alert(1)</script>\n\n[x](javascript:alert(1))", author: "Agent")
+    assert_includes md.current_version.content, "# Plan"
+    rendered = ArtifactRendering.html(md.current_version)
+    %w[<h1>Plan</h1> <strong>bold</strong> <hr> <table> <td>1</td>].each { |fragment| assert_includes rendered, fragment }
+    refute_includes rendered, "<script"
+    refute_includes rendered, "javascript:"
+  end
+
+  test "sign-up closes after the first account unless ALLOW_SIGNUP is set" do
+    get new_registration_path
+    assert_redirected_to new_session_path
+    ENV["ALLOW_SIGNUP"] = "true"
+    get new_registration_path
+    assert_response :success
+  ensure
+    ENV.delete("ALLOW_SIGNUP")
   end
 
   test "revoking an OAuth client revokes all its tokens" do

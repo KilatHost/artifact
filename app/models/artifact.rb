@@ -1,6 +1,7 @@
 class Artifact < ApplicationRecord
   class Conflict < StandardError; end
   RETENTION = 7.days
+  KINDS = %w[markdown html document file].freeze
 
   belongs_to :workspace
   belongs_to :design_kit, optional: true
@@ -9,7 +10,7 @@ class Artifact < ApplicationRecord
   has_many :versions, class_name: "ArtifactVersion", dependent: :restrict_with_error
   has_secure_token :public_id
   validates :title, presence: true, length: { maximum: 200 }
-  validates :kind, inclusion: { in: %w[document html file] }
+  validates :kind, inclusion: { in: KINDS }
   validate :owned_design_kit
 
   scope :active, -> { where(archived_at: nil) }
@@ -44,10 +45,11 @@ class Artifact < ApplicationRecord
     end
   end
 
-  def publish!(version_id:)
+  # Public always means the latest version (founder, 2026-11-11).
+  def publish!
     with_lock do
       raise Conflict, "Archived artifacts can't be published. Restore it first." if archived?
-      update!(published_version: versions.find(version_id))
+      update!(published_version: current_version)
     end
   end
 

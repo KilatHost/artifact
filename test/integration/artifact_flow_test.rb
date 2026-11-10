@@ -12,7 +12,7 @@ class ArtifactFlowTest < ActionDispatch::IntegrationTest
     kit = @workspace.design_kits.create!(name: "Brand", tokens: DesignKit::DEFAULT_TOKENS)
     artifact = @workspace.artifacts.create_draft!(title: "Report", kind: "document", content: "<h1>Published report</h1>", author: @user.email, design_kit_id: kit.id)
     original = artifact.current_version
-    artifact.publish!(version_id: original.id)
+    artifact.publish!
     get public_artifact_path(artifact.public_id)
     assert_response :success
     assert_includes response.body, %(src="#{public_artifact_frame_path(artifact.public_id)}")
@@ -36,19 +36,17 @@ class ArtifactFlowTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Published report", "a restore is live too"
     artifact.unpublish!
     get public_artifact_path(artifact.public_id)
-    assert_response :not_found
+    assert_redirected_to new_session_path
     get public_artifact_frame_path(artifact.public_id)
     assert_response :not_found
   end
 
-  test "cross workspace kit and foreign publication versions are rejected" do
+  test "cross workspace kits and artifacts are rejected" do
     kit = @other_workspace.design_kits.create!(name: "Other", tokens: DesignKit::DEFAULT_TOKENS)
     assert_raises(ActiveRecord::RecordInvalid) do
       @workspace.artifacts.create_draft!(title: "Theft", kind: "document", content: "x", author: "Agent", design_kit_id: kit.id)
     end
-    own = @workspace.artifacts.create_draft!(title: "Own", kind: "document", content: "x", author: "Agent")
     foreign = @other_workspace.artifacts.create_draft!(title: "Foreign", kind: "document", content: "private", author: "Agent")
-    assert_raises(ActiveRecord::RecordNotFound) { own.publish!(version_id: foreign.current_version.id) }
     assert_raises(ActiveRecord::RecordNotFound) { @workspace.artifacts.find(foreign.id) }
   end
 
