@@ -1,0 +1,12 @@
+test:
+  service: Disk
+  root: <%= Rails.root.join("tmp/storage") %>
+local:
+  service: Disk
+  root: <%= Rails.root.join("storage") %>
+s3:
+  service: S3
+  region: <%= ENV.fetch("AWS_REGION", "us-east-1") %>
+  bucket: <%= ENV.fetch("S3_BUCKET", "kilat-artifact") %>
+  endpoint: <%= ENV["S3_ENDPOINT"] %>
+  force_path_style: <%= ENV.fetch("S3_PATH_STYLE", "false") == "true" %>

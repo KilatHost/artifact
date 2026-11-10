@@ -1,0 +1,14 @@
+<% content_for :title, "Artifacts · Kilat" %>
+<div class="page-heading"><div><p class="eyebrow">Workspace</p><h1>Artifacts</h1><p class="muted">Documents, HTML, and files. Drafts stay private until you publish.</p></div><%= link_to "New artifact", new_artifact_path, class: "button" %></div>
+<% if @artifacts.any? %>
+  <div class="artifact-list">
+    <% @artifacts.each do |artifact| %>
+      <%= link_to artifact_path(artifact), class: "artifact-row" do %>
+        <div><span class="eyebrow"><%= artifact.kind %></span><h2><%= artifact.title %></h2><p class="muted">Updated <%= time_ago_in_words(artifact.updated_at) %> ago</p></div>
+        <span class="badge"><%= artifact.published_version_id ? "Published snapshot" : "Private draft" %></span>
+      <% end %>
+    <% end %>
+  </div>
+<% else %>
+  <section class="empty-state"><h2>A clear place to start.</h2><p>Create a document, edit HTML, or keep a file with its version history.</p><%= link_to "Create your first artifact", new_artifact_path, class: "button secondary" %></section>
+<% end %>

@@ -1,0 +1,25 @@
+<%= form_with model: artifact, html: { multipart: true, class: "editor-form", data: { controller: "editor", action: "trix-file-accept->editor#rejectAttachment" } } do |form| %>
+  <% if artifact.errors.any? %><div class="flash" role="alert"><h2>Could not save artifact</h2><ul><% artifact.errors.full_messages.each do |message| %><li><%= message %></li><% end %></ul></div><% end %>
+  <% if artifact.persisted? %><%= form.hidden_field :expected_version, value: artifact.current_version.number %><% end %>
+  <div class="form-grid">
+    <div class="field"><%= form.label :title %><%= form.text_field :title, value: version&.title || artifact.title, required: true, maxlength: 255 %></div>
+    <div class="field"><%= form.label :kind, "Format" %><%= form.select :kind, [["Document", "document"], ["HTML", "html"], ["File", "file"]], { selected: version&.kind || artifact.kind || "document" }, data: { editor_target: "kind", action: "editor#changeKind" } %></div>
+    <div class="field"><%= form.label :design_kit_id, "Design kit" %><%= form.collection_select :design_kit_id, Current.workspace.design_kits.order(:name), :id, :name, include_blank: "Default" %><p class="hint">Kit tokens are captured in each saved version.</p></div>
+  </div>
+  <section data-editor-target="document" <%= "hidden" unless (version&.kind || artifact.kind || "document") == "document" %>>
+    <label for="document-content">Document</label>
+    <input type="hidden" name="artifact[content]" id="document-content" value="<%= version&.content || artifact.try(:content) %>" data-editor-target="documentInput" <%= "disabled" unless (version&.kind || artifact.kind || "document") == "document" %>>
+    <trix-editor input="document-content" aria-label="Document content" data-editor-target="trix"></trix-editor>
+    <p class="hint">Rich text is sanitized on save. Embedded attachments are disabled; upload files separately.</p>
+  </section>
+  <section data-editor-target="html" <%= "hidden" unless (version&.kind || artifact.kind) == "html" %>>
+    <label for="html-content">HTML source</label>
+    <textarea id="html-content" name="artifact[content]" class="source-editor" rows="22" spellcheck="false" data-editor-target="htmlInput" <%= "disabled" unless (version&.kind || artifact.kind) == "html" %>><%= version&.content || artifact.try(:content) %></textarea>
+    <p class="hint">HTML previews run in a sandbox. Scripts and remote resources are not supported.</p>
+  </section>
+  <section data-editor-target="file" <%= "hidden" unless (version&.kind || artifact.kind) == "file" %>>
+    <div class="field"><%= form.label :file, artifact.persisted? ? "Replace file (optional)" : "Upload file" %><%= form.file_field :file, disabled: (version&.kind || artifact.kind) != "file", data: { editor_target: "fileInput" } %></div>
+    <% if version&.file&.attached? %><p class="hint">Current file: <%= version.file.filename %> · <%= number_to_human_size(version.file.byte_size) %></p><% end %>
+  </section>
+  <div class="form-actions"><%= form.submit artifact.persisted? ? "Save new version" : "Create private draft", class: "button" %><span class="hint">Saving does not publish.</span><span class="hint" data-editor-target="status" role="status"></span></div>
+<% end %>

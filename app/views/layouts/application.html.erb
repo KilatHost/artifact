@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= content_for(:title) || "Kilat Artifact" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= yield :head %>
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="app-header">
+      <%= link_to "kilat / artifact", root_path, class: "wordmark" %>
+      <% if Current.user %>
+        <nav aria-label="Main navigation">
+          <%= link_to "Artifacts", artifacts_path, aria: { current: ("page" if controller_name == "artifacts") } %>
+          <%= link_to "Design kits", design_kits_path, aria: { current: ("page" if controller_name == "design_kits") } %>
+          <%= link_to "Connections", connections_path, aria: { current: ("page" if controller_name == "connections") } %>
+        </nav>
+        <details class="account-menu"><summary>Account</summary><div><p><%= Current.user.email %></p><%= button_to "Sign out", session_path, method: :delete, class: "button secondary" %></div></details>
+      <% end %>
+    </header>
+    <main id="main" class="app-main">
+      <% flash.each do |type, message| %>
+        <% next unless %w[notice alert].include?(type.to_s) %>
+        <div class="flash" role="<%= type.to_s == 'alert' ? 'alert' : 'status' %>"><%= message %></div>
+      <% end %>
+      <%= yield %>
+    </main>
+    <footer class="app-footer"><span>Kilat Artifact</span><span>Private drafts. Explicit publishing.</span></footer>
+  </body>
+</html>

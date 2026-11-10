@@ -1,0 +1,9 @@
+<%= form_with model: kit, class: "stack" do |form| %>
+  <% if kit.errors.any? %><div role="alert"><%= kit.errors.full_messages.to_sentence %></div><% end %>
+  <div class="field"><%= form.label :name %><%= form.text_field :name, required: true, maxlength: 120 %></div>
+  <%= form.fields_for :tokens do |tokens| %>
+    <div class="field"><%= tokens.label :font, "Font family" %><%= tokens.select :font, [["System sans", "system-ui"], ["Serif", "serif"], ["Monospace", "monospace"]], selected: kit.tokens&.fetch("font", nil) || "system-ui" %></div>
+    <div class="color-grid"><% { "background" => "#ffffff", "foreground" => "#171717", "accent" => "#525252" }.each do |key, fallback| %><div class="field"><%= tokens.label key %><%= tokens.color_field key, value: kit.tokens&.fetch(key, nil) || fallback %></div><% end %></div>
+  <% end %>
+  <%= form.submit kit.persisted? ? "Save kit version" : "Create design kit", class: "button secondary" %>
+<% end %>

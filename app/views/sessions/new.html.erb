@@ -1,0 +1,11 @@
+<section class="auth-panel">
+  <h1>Sign in to Kilat</h1>
+  <%= form_with url: session_path do |form| %>
+    <%= form.label :email %>
+    <%= form.email_field :email, required: true, autocomplete: "username", autofocus: true %>
+    <%= form.label :password %>
+    <%= form.password_field :password, required: true, autocomplete: "current-password" %>
+    <%= form.submit "Sign in" %>
+  <% end %>
+  <p><%= link_to "Create an account", new_registration_path %></p>
+</section>

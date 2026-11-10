@@ -1,0 +1,14 @@
+<section class="auth-panel">
+  <h1>Create your Kilat account</h1>
+  <% if @user.errors.any? %><p role="alert"><%= @user.errors.full_messages.to_sentence %></p><% end %>
+  <%= form_with model: @user, url: registration_path do |form| %>
+    <%= form.label :email %>
+    <%= form.email_field :email, required: true, autocomplete: "username" %>
+    <%= form.label :password, "Password (12 characters minimum)" %>
+    <%= form.password_field :password, required: true, minlength: 12, autocomplete: "new-password" %>
+    <%= form.label :password_confirmation %>
+    <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password" %>
+    <%= form.submit "Create account" %>
+  <% end %>
+  <p><%= link_to "Sign in", new_session_path %></p>
+</section>

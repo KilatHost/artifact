@@ -1,0 +1,19 @@
+<section class="auth-panel">
+  <h1>Connect <%= @pre_auth.client.name %>?</h1>
+  <p>This app will access your private Kilat workspace. Only approve clients you trust.</p>
+  <ul>
+    <% @pre_auth.scopes.each do |scope| %>
+      <li><strong><%= scope %></strong>: <%= { "read" => "Read artifacts, history, and design kits", "write" => "Create and edit drafts, restore versions, and edit design kits", "publish" => "Publish public snapshots and unpublish them" }.fetch(scope.to_s, scope.to_s) %></li>
+    <% end %>
+  </ul>
+  <p>Redirect: <code><%= @pre_auth.redirect_uri %></code></p>
+  <% [:post, :delete].each do |verb| %>
+    <%= form_tag oauth_authorization_path, method: verb do %>
+      <% %i[redirect_uri state response_type response_mode scope code_challenge code_challenge_method].each do |field| %>
+        <%= hidden_field_tag field, @pre_auth.public_send(field), id: nil %>
+      <% end %>
+      <%= hidden_field_tag :client_id, @pre_auth.client.uid, id: nil %>
+      <%= submit_tag(verb == :post ? "Approve access" : "Deny access") %>
+    <% end %>
+  <% end %>
+</section>

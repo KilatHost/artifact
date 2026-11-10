@@ -1,0 +1,37 @@
+services:
+  web:
+    build: .
+    ports:
+      - "127.0.0.1:${PORT:-3000}:80"
+    environment:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?Set SECRET_KEY_BASE in .env}
+      DATABASE_URL: postgres://kilat:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/kilat_artifact_production
+      APP_HOST: ${APP_HOST:-localhost}
+      FORCE_SSL: ${FORCE_SSL:-false}
+      BROWSER_PATH: /usr/bin/chromium
+      RAILS_LOG_TO_STDOUT: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - artifact_storage:/rails/storage
+    shm_size: 256mb
+    restart: unless-stopped
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: kilat_artifact_production
+      POSTGRES_USER: kilat
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kilat -d kilat_artifact_production"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+volumes:
+  postgres_data:
+  artifact_storage:

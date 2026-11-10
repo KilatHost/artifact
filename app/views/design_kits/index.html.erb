@@ -1,0 +1,6 @@
+<% content_for :title, "Design kits · Kilat" %>
+<div class="page-heading"><div><p class="eyebrow">Shared foundations</p><h1>Design kits</h1><p class="muted">Reusable document tokens. Updating a kit never changes saved versions.</p></div></div>
+<div class="kit-grid">
+  <% @design_kits.each do |kit| %><section class="panel"><div class="section-heading"><h2><%= kit.name %></h2><span class="badge">v<%= kit.version %></span></div><%= render "form", kit: kit %></section><% end %>
+  <section class="panel"><h2>New design kit</h2><%= render "form", kit: Current.workspace.design_kits.new %></section>
+</div>
