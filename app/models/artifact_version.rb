@@ -7,6 +7,7 @@ class ArtifactVersion < ApplicationRecord
   validates :number, numericality: { only_integer: true, greater_than: 0 }
   validates :content, length: { maximum: 1_000_000 }
   validate :valid_file
+  before_validation(on: :create) { self.content = ArtifactRendering.sanitize_document(content) if kind == "document" }
   before_update { raise ActiveRecord::ReadOnlyRecord, "Artifact versions are immutable" }
   before_destroy { raise ActiveRecord::ReadOnlyRecord, "Artifact versions are immutable" }
 

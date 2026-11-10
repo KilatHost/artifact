@@ -2,7 +2,7 @@
 <div class="page-heading"><div><p class="eyebrow"><%= link_to "Artifacts", artifacts_path %> / Version <%= @version.number %></p><h1><%= @artifact.title %></h1><p class="muted"><%= @artifact.published_version_id ? "Published snapshot exists. Saving changes leaves it unchanged." : "Private draft. Only your workspace can access it." %></p></div></div>
 <div class="workspace-grid">
   <div class="stack">
-    <section class="panel"><div class="section-heading"><h2>Edit draft</h2><span class="badge"><%= @version.kind %></span></div><%= render "form", artifact: @artifact, version: @version %></section>
+    <section class="panel"><div class="section-heading"><h2>Edit draft</h2><span class="badge"><%= @version.kind %></span></div><%= render "form", artifact: @artifact, version: @draft || @version %></section>
     <section class="panel"><div class="section-heading"><h2>Saved preview</h2><%= link_to "Open preview", preview_artifact_path(@artifact), target: "_blank", rel: "noopener" %></div><p class="hint">Shows the saved version, not unsaved edits.</p><iframe class="artifact-preview" title="Saved artifact preview" sandbox="" referrerpolicy="no-referrer" src="<%= preview_artifact_path(@artifact) %>"></iframe></section>
   </div>
   <aside class="stack" aria-label="Artifact controls">

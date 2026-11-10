@@ -5,7 +5,7 @@ class ArtifactMcp
   STRING = { type: "string" }.freeze
   INTEGER = { type: "integer", minimum: 1 }.freeze
   ID = { id: INTEGER }.freeze
-  TOOLS = [
+  TOOL_SPECS = [
     [ "list_artifacts", "read", "List private workspace artifacts (100 per page)", { offset: { type: "integer", minimum: 0 } }, [] ],
     [ "get_artifact", "read", "Read an artifact and its current version", ID, %w[id] ],
     [ "create_artifact", "write", "Create a private document or HTML draft; reuse request_id only to retry identical input", { request_id: { type: "string", minLength: 1, maxLength: 128 }, title: STRING, kind: { type: "string", enum: %w[document html] }, content: STRING, design_kit_id: INTEGER }, %w[request_id title kind content] ],
@@ -17,7 +17,9 @@ class ArtifactMcp
     [ "update_design_kit", "write", "Update a shared design kit", ID.merge(name: STRING, tokens: { type: "object", properties: { font: STRING, background: STRING, foreground: STRING, accent: STRING }, additionalProperties: false }), %w[id name tokens] ],
     [ "publish_artifact", "publish", "Publish a specified immutable snapshot publicly", ID.merge(version_id: INTEGER), %w[id version_id] ],
     [ "unpublish_artifact", "publish", "Remove public access to an artifact", ID, %w[id] ]
-  ].map do |name, scope, description, properties, required|
+  ].freeze
+  INPUT_KEYS = TOOL_SPECS.to_h { |name, _, _, properties, _| [ name, properties.keys ] }.freeze
+  TOOLS = TOOL_SPECS.map do |name, scope, description, properties, required|
     Class.new(MCP::Tool) do
       tool_name name
       description description
@@ -40,14 +42,14 @@ class ArtifactMcp
 
   def self.perform(name, workspace, input)
     raise ActiveRecord::RecordNotFound unless workspace
-    input = input.dup
+    input = input.to_h.symbolize_keys.slice(*INPUT_KEYS.fetch(name))
     input[:tokens] = input[:tokens].transform_keys(&:to_s) if input[:tokens].is_a?(Hash)
     author = "MCP"
     case name
     when "list_artifacts"
-      workspace.artifacts.order(id: :desc).offset(input.fetch(:offset, 0)).limit(100).map { |artifact| summary(artifact) }
+      workspace.artifacts.active.order(id: :desc).offset(input.fetch(:offset, 0)).limit(100).map { |artifact| summary(artifact) }
     when "get_artifact"
-      artifact = workspace.artifacts.find(input[:id])
+      artifact = workspace.artifacts.active.find(input[:id])
       summary(artifact).merge(version: version_data(artifact.current_version))
     when "create_artifact"
       request_id = input.delete(:request_id)
@@ -66,12 +68,12 @@ class ArtifactMcp
         end
       end
     when "update_artifact"
-      artifact = workspace.artifacts.find(input.delete(:id))
+      artifact = workspace.artifacts.active.find(input.delete(:id))
       version_data(artifact.revise!(**input, author: author))
     when "artifact_history"
-      workspace.artifacts.find(input[:id]).versions.order(number: :desc).offset(input.fetch(:offset, 0)).limit(100).map { |version| version_data(version) }
+      workspace.artifacts.active.find(input[:id]).versions.order(number: :desc).offset(input.fetch(:offset, 0)).limit(100).map { |version| version_data(version) }
     when "restore_artifact"
-      artifact = workspace.artifacts.find(input.delete(:id))
+      artifact = workspace.artifacts.active.find(input.delete(:id))
       version_data(artifact.restore!(**input, author: author))
     when "list_design_kits"
       workspace.design_kits.order(:id).offset(input.fetch(:offset, 0)).limit(100).map { |kit| kit.as_json(only: %i[id name tokens version]) }
@@ -82,11 +84,11 @@ class ArtifactMcp
       kit.update!(**input)
       kit.as_json(only: %i[id name tokens version])
     when "publish_artifact"
-      artifact = workspace.artifacts.find(input[:id])
+      artifact = workspace.artifacts.active.find(input[:id])
       artifact.publish!(version_id: input[:version_id])
       summary(artifact)
     when "unpublish_artifact"
-      artifact = workspace.artifacts.find(input[:id])
+      artifact = workspace.artifacts.active.find(input[:id])
       artifact.unpublish!
       summary(artifact)
     end

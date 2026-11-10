@@ -10,19 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_10_143200) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_10_160000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
-
-  create_table "action_text_rich_texts", force: :cascade do |t|
-    t.string "name", null: false
-    t.text "body"
-    t.string "record_type", null: false
-    t.bigint "record_id", null: false
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["record_type", "record_id", "name"], name: "index_action_text_rich_texts_uniqueness", unique: true
-  end
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
@@ -87,6 +77,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_143200) do
     t.string "public_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "archived_at"
+    t.index ["archived_at"], name: "index_artifacts_on_archived_at", where: "(archived_at IS NOT NULL)"
     t.index ["design_kit_id"], name: "index_artifacts_on_design_kit_id"
     t.index ["public_id"], name: "index_artifacts_on_public_id", unique: true
     t.index ["workspace_id"], name: "index_artifacts_on_workspace_id"

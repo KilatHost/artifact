@@ -1,7 +1,19 @@
 require "zip"
 require "ferrum"
 class ArtifactExports
+  PDF_LOCK = Mutex.new
+
+  # One Chromium per process. Returns nil when a render is already running.
   def self.pdf(version)
+    return unless PDF_LOCK.try_lock
+    begin
+      render_pdf(version)
+    ensure
+      PDF_LOCK.unlock
+    end
+  end
+
+  def self.render_pdf(version)
     browser = Ferrum::Browser.new(browser_path: ENV["BROWSER_PATH"].presence, headless: true, timeout: 20, process_timeout: 20, browser_options: { "disable-dev-shm-usage" => nil, "disable-background-networking" => nil, "disable-extensions" => nil, "js-flags" => "--jitless" })
     browser.network.intercept
     browser.on(:request) { |request| request.abort }

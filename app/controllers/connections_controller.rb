@@ -1,7 +1,7 @@
 class ConnectionsController < ApplicationController
   def index
     @tokens = Current.workspace.api_tokens.order(created_at: :desc)
-    @oauth_tokens = Doorkeeper::AccessToken.where(resource_owner_id: Current.user.id, revoked_at: nil).includes(:application)
+    @oauth_clients = Doorkeeper::Application.where(id: Doorkeeper::AccessToken.where(resource_owner_id: Current.user.id, revoked_at: nil).select(:application_id)).order(:name)
   end
 
   def create
@@ -16,7 +16,9 @@ class ConnectionsController < ApplicationController
 
   def destroy
     if params[:oauth] == "1"
-      Doorkeeper::AccessToken.where(resource_owner_id: Current.user.id).find(params[:id]).revoke
+      application = Doorkeeper::Application.find(params[:id])
+      Doorkeeper::AccessToken.revoke_all_for(application.id, Current.user)
+      Doorkeeper::AccessGrant.revoke_all_for(application.id, Current.user)
     else
       Current.workspace.api_tokens.find(params[:id]).destroy!
     end

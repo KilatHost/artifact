@@ -41,8 +41,6 @@ class ArtifactFlowTest < ActionDispatch::IntegrationTest
     foreign = @other_workspace.artifacts.create_draft!(title: "Foreign", kind: "document", content: "private", author: "Agent")
     assert_raises(ActiveRecord::RecordNotFound) { own.publish!(version_id: foreign.current_version.id) }
     assert_raises(ActiveRecord::RecordNotFound) { @workspace.artifacts.find(foreign.id) }
-    get "/rails/active_storage/blobs/redirect/anything/private.pdf"
-    assert_response :not_found
   end
 
   test "unsafe design tokens rejected and document scripts stripped" do

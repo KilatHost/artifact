@@ -10,6 +10,8 @@ Rails.application.routes.draw do
       post :unpublish
       post :restore
       post :upload
+      post :archive
+      post :unarchive
     end
   end
   resources :design_kits, only: %i[index create update]

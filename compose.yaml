@@ -18,6 +18,22 @@ services:
       - artifact_storage:/rails/storage
     shm_size: 256mb
     restart: unless-stopped
+  jobs:
+    build: .
+    # Purges artifacts deleted more than 7 days ago, once an hour.
+    command: ["bash", "-c", "while true; do sleep 300; ./bin/rails artifacts:purge_archived || true; sleep 3300; done"]
+    environment:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?Set SECRET_KEY_BASE in .env}
+      DATABASE_URL: postgres://kilat:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/kilat_artifact_production
+      APP_HOST: ${APP_HOST:-localhost}
+      RAILS_LOG_TO_STDOUT: "true"
+    depends_on:
+      web:
+        condition: service_started
+    volumes:
+      - artifact_storage:/rails/storage
+    restart: unless-stopped
   db:
     image: postgres:17-alpine
     environment:

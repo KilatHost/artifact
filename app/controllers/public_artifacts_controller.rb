@@ -1,6 +1,8 @@
 class PublicArtifactsController < ActionController::Base
+  include ActiveStorage::Streaming
+
   def show
-    artifact = Artifact.find_by!(public_id: params[:public_id])
+    artifact = Artifact.active.find_by!(public_id: params[:public_id])
     raise ActiveRecord::RecordNotFound unless artifact.published_version
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -9,7 +11,7 @@ class PublicArtifactsController < ActionController::Base
     version = artifact.published_version
     if version.kind == "file"
       raise ActiveRecord::RecordNotFound unless version.file.attached?
-      return send_data version.file.download, filename: version.file.filename.to_s, type: "application/octet-stream", disposition: "attachment"
+      return send_blob_stream version.file.blob, disposition: "attachment"
     end
     render html: ArtifactRendering.html(artifact.published_version).html_safe, layout: false
   end

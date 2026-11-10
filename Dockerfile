@@ -3,7 +3,7 @@ ARG RUBY_VERSION=3.3.13
 FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 WORKDIR /rails
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client chromium fonts-liberation fonts-noto-core && \
+    apt-get install --no-install-recommends -y curl libjemalloc2 postgresql-client chromium fonts-liberation fonts-noto-core && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists/*
 ENV RAILS_ENV="production" \
@@ -11,7 +11,8 @@ ENV RAILS_ENV="production" \
     BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test" \
     LD_PRELOAD="/usr/local/lib/libjemalloc.so" \
-    BROWSER_PATH="/usr/bin/chromium"
+    BROWSER_PATH="/usr/bin/chromium" \
+    MAX_REQUEST_BODY="23068672"
 FROM base AS build
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y build-essential git libpq-dev libyaml-dev pkg-config && \

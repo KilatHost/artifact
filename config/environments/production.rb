@@ -77,7 +77,7 @@ Rails.application.configure do
 
   # Only use :id for inspections in production.
   config.active_record.attributes_for_inspect = [ :id ]
-  config.hosts = [ENV.fetch("APP_HOST", "localhost")]
+  config.hosts = [ ENV.fetch("APP_HOST", "localhost") ]
   config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
 
   # Enable DNS rebinding protection and other `Host` header attacks.
