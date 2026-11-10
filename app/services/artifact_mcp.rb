@@ -5,11 +5,18 @@ class ArtifactMcp
   STRING = { type: "string" }.freeze
   INTEGER = { type: "integer", minimum: 1 }.freeze
   ID = { id: INTEGER }.freeze
+  # Agents write Markdown by habit; content is HTML, so every write tool says so.
+  CONTENT_RULES = "Content must be HTML, not Markdown: Markdown is shown as raw text. " \
+    "kind \"document\": an HTML fragment (no <html>/<head>) using only p br h1-h4 strong em b i u s del blockquote pre code ul ol li a table thead tbody tr th td hr div span; " \
+    "other tags, all attributes except href/title/colspan/rowspan, styles and scripts are removed on save. " \
+    "kind \"html\": body HTML with your own <style> block (it is placed inside the page body, so no <html>/<head>); scripts, external files and network requests are blocked, so build slides or layouts with HTML and CSS only (images as data: URIs). " \
+    "The kind is fixed once created; to change it, create a new artifact.".freeze
+  CONTENT = { type: "string", description: CONTENT_RULES }.freeze
   TOOL_SPECS = [
     [ "list_artifacts", "read", "List private workspace artifacts (100 per page)", { offset: { type: "integer", minimum: 0 } }, [] ],
     [ "get_artifact", "read", "Read an artifact and its current version", ID, %w[id] ],
-    [ "create_artifact", "write", "Create a private document or HTML draft; reuse request_id only to retry identical input", { request_id: { type: "string", minLength: 1, maxLength: 128 }, title: STRING, kind: { type: "string", enum: %w[document html] }, content: STRING, design_kit_id: INTEGER }, %w[request_id title kind content] ],
-    [ "update_artifact", "write", "Save a new version using optimistic version locking. If the artifact is public, the new version is live on its public_url at once", ID.merge(title: STRING, content: STRING, expected_version: INTEGER), %w[id title content expected_version] ],
+    [ "create_artifact", "write", "Create a private artifact. Use kind \"document\" for prose and \"html\" for designed pages such as slide decks or reports. #{CONTENT_RULES} Reuse request_id only to retry identical input. The result has url (editor) and public_url (set once public)", { request_id: { type: "string", minLength: 1, maxLength: 128 }, title: STRING, kind: { type: "string", enum: %w[document html], description: "document = simple formatted text; html = a full designed page (slides, layouts, custom styling)" }, content: CONTENT, design_kit_id: INTEGER }, %w[request_id title kind content] ],
+    [ "update_artifact", "write", "Save a new version. Pass expected_version = the current version number from get_artifact. If the artifact is public, the new version is live on its public_url at once. #{CONTENT_RULES}", ID.merge(title: STRING, content: CONTENT, expected_version: INTEGER), %w[id title content expected_version] ],
     [ "artifact_history", "read", "Read immutable version history (100 per page)", ID.merge(offset: { type: "integer", minimum: 0 }), %w[id] ],
     [ "restore_artifact", "write", "Restore an old version as a new version (live at once if the artifact is public)", ID.merge(version_id: INTEGER, expected_version: INTEGER), %w[id version_id expected_version] ],
     [ "list_design_kits", "read", "List workspace design kits (100 per page)", { offset: { type: "integer", minimum: 0 } }, [] ],
