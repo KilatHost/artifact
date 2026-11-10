@@ -36,9 +36,8 @@ echo "$DOC_PATH"
 
 step "Publish"
 PAGE=$(curl -fsS -b "$JAR" -c "$JAR" "$BASE$DOC_PATH")
-VERSION=$(echo "$PAGE" | grep -o 'name="version_id" value="[0-9]*"' | head -1 | grep -o '[0-9]*')
 T=$(echo "$PAGE" | meta_token)
-curl -fsS -b "$JAR" -c "$JAR" -o /dev/null --data-urlencode "authenticity_token=$T" -d "version_id=$VERSION" "$BASE$DOC_PATH/publish"
+curl -fsS -b "$JAR" -c "$JAR" -o /dev/null --data-urlencode "authenticity_token=$T" "$BASE$DOC_PATH/publish"
 PUBLIC=$(curl -fsS -b "$JAR" "$BASE$DOC_PATH" | grep -o '/p/[A-Za-z0-9]*' | head -1)
 curl -fsS "$BASE$PUBLIC" | grep -q "$PUBLIC/frame"
 curl -fsS "$BASE$PUBLIC/frame" | grep -q "Smoke check passed"
