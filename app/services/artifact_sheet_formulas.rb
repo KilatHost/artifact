@@ -129,6 +129,10 @@ class ArtifactSheetFormulas
   end
 
   def binary(operator, left, right)
+    if %w[= <> < > <= >=].include?(operator)
+      left = right.is_a?(String) ? "" : 0 if left.nil?
+      right = left.is_a?(String) ? "" : 0 if right.nil?
+    end
     case operator
     when "+" then number(left) + number(right)
     when "-" then number(left) - number(right)
