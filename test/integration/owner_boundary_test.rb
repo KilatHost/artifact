@@ -231,6 +231,23 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
     ENV.delete("ALLOW_SIGNUP")
   end
 
+  test "Connections combines the owner's usable OAuth token scopes, not registered client scopes" do
+    app = Doorkeeper::Application.create!(name: "Client", redirect_uri: "https://client.example/cb", scopes: "read write publish", confidential: false)
+    tokens = Doorkeeper::AccessToken.where(application: app, expires_in: 3600)
+    own_tokens = tokens.where(resource_owner_id: @owner.id)
+    own_tokens.create!(scopes: "read")
+    own_tokens.create!(scopes: "write", created_at: 2.hours.ago, use_refresh_token: true)
+    own_tokens.create!(scopes: "publish", revoked_at: Time.current)
+    own_tokens.create!(scopes: "publish", created_at: 2.hours.ago)
+    tokens.create!(resource_owner_id: @intruder.id, scopes: "publish")
+
+    sign_in @owner
+    get connections_path
+    assert_response :success
+    assert_select ".card-list li .row-meta span", text: "Read, Write", count: 1
+    assert_select ".card-list li .row-meta span", text: /Publish/, count: 0
+  end
+
   test "revoking an OAuth client revokes all its tokens" do
     app = Doorkeeper::Application.create!(name: "Client", redirect_uri: "https://client.example/cb", scopes: "read", confidential: false)
     tokens = 2.times.map { Doorkeeper::AccessToken.create!(application: app, resource_owner_id: @owner.id, scopes: "read", expires_in: 3600) }
