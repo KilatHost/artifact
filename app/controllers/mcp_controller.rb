@@ -5,11 +5,13 @@ class McpController < ActionController::API
     if token
       workspace = token.workspace
       scopes = token.scopes.split
+      actor = token
     elsif secret.present?
       oauth_token = Doorkeeper::AccessToken.by_token(secret)
       if oauth_token&.accessible?
         workspace = User.find_by(id: oauth_token.resource_owner_id)&.workspace
         scopes = oauth_token.scopes.to_a
+        actor = oauth_token.application
       end
     end
     unless workspace && scopes.present?
@@ -17,7 +19,7 @@ class McpController < ActionController::API
       return render json: { error: "invalid_token" }, status: :unauthorized
     end
 
-    server = MCP::Server.new(name: "kilat", version: "1.0.0", instructions: ArtifactMcp::INSTRUCTIONS, tools: ArtifactMcp::TOOLS, server_context: { workspace: workspace, scopes: scopes, base_url: request.base_url })
+    server = ArtifactMcp::Server.new(name: "kilat", version: "1.0.0", instructions: ArtifactMcp::INSTRUCTIONS, tools: ArtifactMcp::TOOLS, server_context: { workspace: workspace, scopes: scopes, base_url: request.base_url, actor: actor })
     transport = MCP::Server::Transports::StreamableHTTPTransport.new(server, stateless: true, enable_json_response: true, serve_subscriptions_listen: false, allowed_hosts: [ request.host_with_port ])
     status, headers, body = transport.call(request.env)
     headers.each { |key, value| response.headers[key] = value unless key.downcase == "content-length" }

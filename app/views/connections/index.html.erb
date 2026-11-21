@@ -39,7 +39,7 @@
         <fieldset class="choice-list">
           <legend class="field-label">Access</legend>
           <% { "read" => [ "Read", "Artifacts, history and design kits" ], "write" => [ "Write", "Create and edit private drafts" ], "publish" => [ "Publish", "Make versions public and turn links off" ] }.each do |scope, (name, desc)| %>
-            <label class="choice" for="scope-<%= scope %>"><%= check_box_tag "connection[scopes][]", scope, scope == "read", id: "scope-#{scope}" %><span><strong><%= name %></strong><span class="caption"><%= desc %></span></span></label>
+            <label class="choice" for="scope-<%= scope %>"><%= check_box_tag "connection[scopes][]", scope, scope != "publish", id: "scope-#{scope}" %><span><strong><%= name %></strong><span class="caption"><%= desc %></span></span></label>
           <% end %>
         </fieldset>
         <div class="form-actions"><%= form.submit "Create token", class: "button-primary" %></div>

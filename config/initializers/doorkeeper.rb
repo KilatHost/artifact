@@ -12,8 +12,8 @@ Doorkeeper.configure do
   end
   admin_authenticator { head :forbidden }
   grant_flows %w[authorization_code]
-  default_scopes :read
-  optional_scopes :write, :publish
+  default_scopes :read, :write
+  optional_scopes :publish
   enforce_configured_scopes
   force_pkce
   hash_token_secrets
