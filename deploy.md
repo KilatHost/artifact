@@ -38,6 +38,7 @@ Edit `.env`, using separate generated values:
 | `PORT` | Host loopback port; default `3000` |
 | `FORCE_SSL` | `false` for local HTTP; `true` behind correctly configured HTTPS proxy |
 | `ALLOW_SIGNUP` | `false` (default): only the first account can sign up. `true` lets anyone create an account with its own workspace |
+| `KILAT_PUBLIC_LINKS` | `latest` (default): public links follow new revisions. `pinned` (recommended for cloud): publishing pins the current version until the owner updates the public link or delegates it via MCP publish scope. Existing null-pin links keep following latest. Pass this environment variable into the Rails web container when using Compose. |
 | `ARTIFACT_EXTERNAL_RESOURCES` | `true` (default): HTML artifacts may load libraries from cdnjs, jsdelivr, unpkg and the Tailwind CDN, fonts from Google Fonts and images over https, so visitors' browsers contact those hosts. `false` keeps artifacts to inline code and `data:` URIs |
 
 Never commit `.env`, credential keys, database dumps or uploaded files. Preserve `SECRET_KEY_BASE` across upgrades. Changing `POSTGRES_PASSWORD` in `.env` does not change an existing PostgreSQL role's password; rotate both deliberately during maintenance.

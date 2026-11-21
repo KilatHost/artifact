@@ -36,7 +36,7 @@ class ArtifactFlowTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Published report", "a restore is live too"
     artifact.unpublish!
     get public_artifact_path(artifact.public_id)
-    assert_redirected_to new_session_path
+    assert_response :not_found
     get public_artifact_frame_path(artifact.public_id)
     assert_response :not_found
   end
