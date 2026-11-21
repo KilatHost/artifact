@@ -11,6 +11,7 @@ services:
       FORCE_SSL: ${FORCE_SSL:-false}
       ALLOW_SIGNUP: ${ALLOW_SIGNUP:-false}
       ARTIFACT_EXTERNAL_RESOURCES: ${ARTIFACT_EXTERNAL_RESOURCES:-true}
+      KILAT_PUBLIC_LINKS: ${KILAT_PUBLIC_LINKS:-latest}
       BROWSER_PATH: /usr/bin/chromium
       RAILS_LOG_TO_STDOUT: "true"
     depends_on:

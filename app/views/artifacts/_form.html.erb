@@ -36,6 +36,6 @@
 
   <div class="form-actions">
     <%= form.submit artifact.persisted? ? "Save version" : "Create draft", class: "button-primary" %>
-    <span class="caption"><%= artifact.published_version_id ? "Saving makes it live on the public link." : "Saving keeps it private." %></span>
+    <span class="caption"><%= artifact.public_version_number ? "Saving leaves the public link pinned until you update it." : (artifact.published_version_id ? "Saving makes it live on the public link." : "Saving keeps it private.") %></span>
   </div>
 <% end %>

@@ -9,7 +9,7 @@ class OauthRegistrationsController < ActionController::API
     valid &&= params[:token_endpoint_auth_method].in?([ nil, "none" ])
     valid &&= params[:grant_types].nil? || params[:grant_types] == [ "authorization_code" ] || params[:grant_types] == %w[authorization_code refresh_token]
     valid &&= params[:response_types].nil? || params[:response_types] == [ "code" ]
-    scopes = params.fetch(:scope, "read").to_s.split.uniq
+    scopes = params.fetch(:scope, "read write").to_s.split.uniq
     valid &&= scopes.any? && (scopes - ApiToken::SCOPES).empty?
     name = params[:client_name].to_s.strip
     valid &&= name.length.between?(1, 100)

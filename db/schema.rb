@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_11_10_160000) do
+ActiveRecord::Schema[8.1].define(version: 2026_11_21_110000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -63,6 +63,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_160000) do
     t.string "author", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "actor_type"
+    t.bigint "actor_id"
     t.index ["artifact_id", "number"], name: "index_artifact_versions_on_artifact_id_and_number", unique: true
     t.index ["artifact_id"], name: "index_artifact_versions_on_artifact_id"
   end
@@ -78,6 +80,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_11_10_160000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "archived_at"
+    t.integer "public_version_number"
     t.index ["archived_at"], name: "index_artifacts_on_archived_at", where: "(archived_at IS NOT NULL)"
     t.index ["design_kit_id"], name: "index_artifacts_on_design_kit_id"
     t.index ["public_id"], name: "index_artifacts_on_public_id", unique: true

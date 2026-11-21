@@ -106,19 +106,19 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
   end
 
   test "MCP ignores keys a tool does not declare" do
-    ArtifactMcp.perform("update_artifact", @workspace, { id: @artifact.id, content: "<p>c</p>", author: "Spoofed", workspace_id: 999 })
+    ArtifactMcp.perform("update_artifact", @workspace, { id: @artifact.id, content: "<p>c</p>", expected_version: 1, author: "Spoofed", workspace_id: 999 })
     assert_equal "MCP", @artifact.reload.current_version.author
     assert_equal @workspace.id, @artifact.workspace_id
   end
 
-  test "an agent succeeds first try: create, update without reading, publish, change kind, delete" do
+  test "an agent creates, revises with version checks, publishes, changes kind and deletes" do
     base = "https://artifact.example"
     perform = ->(tool, input) { ArtifactMcp.perform(tool, @workspace, input, base_url: base) }
     created = perform.("create_artifact", { request_id: "r1", title: "Deck", kind: "markdown", content: "# Plan\n\n- one" })
     assert_equal "#{base}/p/#{Artifact.find(created["id"]).public_id}", created["url"]
     assert_equal 1, created["version"]
     assert_equal false, created["public"]
-    updated = perform.("update_artifact", { id: created["id"], content: "# Plan\n\n- two" })
+    updated = perform.("update_artifact", { id: created["id"], content: "# Plan\n\n- two", expected_version: 1 })
     assert_equal 2, updated["version"]
     assert_equal "Deck", updated["title"]
     published = perform.("publish_artifact", { id: created["id"] })
@@ -127,13 +127,13 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_includes response.body, "<li>two</li>"
     assert_raises(Artifact::Conflict) { perform.("update_artifact", { id: created["id"], content: "x", expected_version: 1 }) }
-    html = perform.("update_artifact", { id: created["id"], kind: "html", content: "<!doctype html><html><body><p id=x></p><script>x.textContent='ran'</script></body></html>" })
+    html = perform.("update_artifact", { id: created["id"], kind: "html", content: "<!doctype html><html><body><p id=x></p><script>x.textContent='ran'</script></body></html>", expected_version: 2 })
     assert_equal "html", html["kind"]
     history = perform.("artifact_history", { id: created["id"] })
     assert_equal [ 3, 2, 1 ], history.map { |v| v["number"] }
     refute history.first.key?("content")
     assert_equal "# Plan\n\n- one", perform.("get_artifact", { id: created["id"], version: 1 })["content"]
-    perform.("restore_artifact", { id: created["id"], version: 2 })
+    perform.("restore_artifact", { id: created["id"], version: 2, expected_version: 3 })
     assert_equal 4, Artifact.find(created["id"]).current_version.number
     perform.("delete_artifact", { id: created["id"] })
     get URI(created["url"]).path
@@ -142,7 +142,7 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
 
   test "the viewer shows a private artifact and its switch only to the owner" do
     get public_artifact_path(@artifact.public_id)
-    assert_redirected_to new_session_path, "signed-out visitors are sent to sign in, then back"
+    assert_redirected_to new_session_path
     get public_artifact_frame_path(@artifact.public_id)
     assert_response :not_found
     sign_in @intruder

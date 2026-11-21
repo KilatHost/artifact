@@ -39,7 +39,7 @@
   <aside class="stack" aria-label="Artifact actions">
     <section class="card">
       <div class="card-header"><div><h2 class="card-title">Link</h2>
-        <p class="card-desc"><%= published ? "Anyone with the link sees the latest version. New versions go live when you save." : "Only you can open the link. Make it public to share it; it always shows the latest version." %></p>
+        <p class="card-desc"><%= @artifact.public_version_number ? "Public link pinned to version #{@artifact.public_version_number}. Saving does not change it." : (published ? "Anyone with the link sees the latest version. New versions go live when you save." : "Make it public to share it.") %></p>
       </div></div>
       <div class="card-body form-stack">
         <div class="copy-field" data-controller="copy">
@@ -47,9 +47,12 @@
           <button type="button" class="copy-button" data-action="copy#copy"><%= icon("copy") %><span data-copy-target="label">Copy</span></button>
         </div>
         <% unless published %>
-          <%= button_to "Make public", publish_artifact_path(@artifact), class: "button-secondary button-block", data: { turbo_confirm: "Make it public? Anyone with the link can open it, and new versions go live when you save." } %>
+          <%= button_to "Make public", publish_artifact_path(@artifact), class: "button-secondary button-block", data: { turbo_confirm: "Make it public? Anyone with the link can open it." } %>
         <% end %>
         <% if published %>
+          <% if @artifact.public_version_number && @artifact.public_version_number < @artifact.current_version.number %>
+            <%= button_to "Update public link", update_public_link_artifact_path(@artifact), class: "button-secondary button-sm" %>
+          <% end %>
           <%= button_to "Turn off public link", unpublish_artifact_path(@artifact), class: "button-ghost button-block", data: { turbo_confirm: "Turn off the public link? Copies people already saved stay with them." } %>
         <% end %>
       </div>

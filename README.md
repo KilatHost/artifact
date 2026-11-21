@@ -84,7 +84,7 @@ For remote access, TLS, storage, backups and upgrades, follow **[deploy.md](depl
 
 1. Create a private artifact and save versions as you work.
 2. Make it public. Its link is `/p/<public_id>`, with a Kilat bar (title, download, copy link) above the artifact.
-3. Every version saved after that, including a restore, is live on the link at once. Make it private again to turn the link off; the owner can still open it there.
+3. By default every saved version, including a restore, is live at once. With `KILAT_PUBLIC_LINKS=pinned`, publishing pins the current version until an explicit update. Make it private again to turn the link off; the owner can still open it there.
 
 Unpublishing disables the public endpoint, but cannot recall copies already downloaded, cached by third parties or captured in screenshots. Public access is read-only; private version history is not published.
 
@@ -107,7 +107,7 @@ For compatible remote MCP clients, enter the endpoint URL and complete browser a
 | `/oauth/token` | Authorization-code exchange and refresh |
 | `/oauth/revoke` | Token revocation |
 
-Authorization codes require S256 PKCE. Registered redirects must use HTTPS, except supported HTTP loopback redirects. Client registration can request a space-separated `scope`; omitted scope defaults to `read`. Revoke grants from **Connections**.
+Authorization codes require S256 PKCE. Registered redirects must use HTTPS, except supported HTTP loopback redirects. Client registration can request a space-separated `scope`; omitted scope defaults to `read write`. Revoke grants from **Connections**.
 
 Tested: Claude, as a custom connector on claude.ai over OAuth (November 2026): sign-in, create, read, update, publish, Markdown briefs and interactive HTML decks. Not yet tested: ChatGPT, Gemini and Manus; their plans and connector capabilities may differ.
 
@@ -129,16 +129,18 @@ Do not put secrets in artifact content, URLs, screenshots or source control.
 
 Scopes are independent. `write` does not include `publish`, and does not implicitly grant `read`.
 
-### MCP tools
+### v1 MCP contract
+
+OAuth defaults and the personal-token form select `read write`; `publish` is always opt-in. Scopes remain independent. Each connection acts within its owner's workspace.
 
 | Tool | Scope | Important inputs |
 | --- | --- | --- |
 | `list_artifacts` | `read` | Optional `offset`; 100 results per page |
 | `get_artifact` | `read` | Artifact `id`; optional `version` number |
 | `create_artifact` | `write` | `request_id`, `title`, `kind`, `content`; optional `design_kit_id` |
-| `update_artifact` | `write` | `id`, `content`; optional `title`, `kind`, `expected_version` |
+| `update_artifact` | `write` | `id`, `content`, `expected_version`; optional `title`, `kind`, `request_id` |
 | `artifact_history` | `read` | `id`; optional `offset`; 100 results per page |
-| `restore_artifact` | `write` | `id`, `version` number |
+| `restore_artifact` | `write` | `id`, `version`, `expected_version`; optional `request_id` |
 | `delete_artifact` | `write` | `id`; restorable in the web app for 7 days |
 | `list_design_kits` | `read` | Optional `offset`; 100 results per page |
 | `create_design_kit` | `write` | `name`, `tokens` |
@@ -146,7 +148,17 @@ Scopes are independent. `write` does not include `publish`, and does not implici
 | `publish_artifact` | `publish` | `id` |
 | `unpublish_artifact` | `publish` | `id` |
 
-`create_artifact` accepts `markdown` (prose) or `html` (designed or interactive pages). Every result carries `url`, the one link to give people: the owner can open it while private, anyone once public. `edit_url` opens the editor. Use a stable `request_id` of 1–128 characters when retrying the same creation: identical requests return the original result; changed content under the same ID is rejected. `update_artifact` saves on top of the latest version unless you pass `expected_version`, in which case a newer edit is refused. The server also sends these rules to clients as MCP instructions.
+`create_artifact` accepts `markdown` (prose) or `html` (designed or interactive pages). Artifact summaries contain `id,title,kind,design_kit_id,updated_at,version,public,public_version,url,edit_url`. The ID and URL stay stable across revisions. `public_version` is the pin number or null (private or following latest). Lists return arrays, at most 100 items per offset page; history omits content. Get adds `content,latest_version,author,connection,file` (file metadata or null). Tool outputs are JSON encoded in MCP text content.
+
+Get/history expose `author` as a display name and `connection: {type,id,name}` or null for legacy rows. Types are `user`, `api_token`, `oauth_application`; MCP names come from the authenticated token/application, browser names from the user email. Names are captured at write time; revoked connections remain identifiable. Caller-supplied authors are not accepted.
+
+Create requires `request_id` (1–128 characters); update/restore accept it optionally. Reuse it only for identical retries: the workspace-wide receipt includes tool name, authenticated connection type/ID (or null), and inputs. A retry returns the original result without a new version, even after later edits. Different inputs, tools or connections yield `idempotency_mismatch`. Receipts have no expiry; use unique IDs across agents. Without a request ID, revise retries are not idempotent.
+
+Update and restore require `expected_version`, checked under the artifact lock. **Stale-write recovery:** (1) call `get_artifact`; (2) reapply your intended change to its latest content, preserving other edits; (3) retry with `expected_version` set to that version and a new request ID if inputs changed. Do not blindly retry stale content.
+
+Tool errors have `isError:true` and JSON text `{error,message,...}`. Codes: `version_conflict` (includes `current_version` and `recovery` hint), `not_found`, `permission_denied` (includes `required_scope`), `invalid_request`, `idempotency_mismatch`. Invalid/revoked authentication instead returns HTTP 401 `{error:"invalid_token"}` and discovery challenge. Protocol errors remain JSON-RPC errors.
+
+`KILAT_PUBLIC_LINKS=latest` (default/self-host) follows every revision. `pinned` (cloud) pins on publication; revisions never advance a pin. Existing null-pin publications continue following latest. The owner can choose **Update public link** on the artifact page. Calling `publish_artifact` again advances a pin too: opt-in `publish` scope is explicit owner delegation for this action, not just initial publication. Ask the owner before publishing/advancing. Unpublish clears the pin and disables anonymous page/frame/export/file access; public responses use no-store caching.
 
 MCP exposes file metadata, not binary upload/download tools. Browser uploads and authorized HTTP downloads handle files.
 

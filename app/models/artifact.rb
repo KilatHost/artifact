@@ -1,5 +1,12 @@
 class Artifact < ApplicationRecord
-  class Conflict < StandardError; end
+  class Conflict < StandardError
+    attr_reader :current_version
+
+    def initialize(message, current_version: nil)
+      @current_version = current_version
+      super(message)
+    end
+  end
   RETENTION = 7.days
   KINDS = %w[markdown html document file].freeze
 
@@ -16,10 +23,10 @@ class Artifact < ApplicationRecord
   scope :active, -> { where(archived_at: nil) }
   scope :archived, -> { where.not(archived_at: nil) }
 
-  def self.create_draft!(title:, kind:, content:, author:, file: nil, design_kit_id: nil)
+  def self.create_draft!(title:, kind:, content:, author:, file: nil, design_kit_id: nil, actor: nil)
     transaction do
       artifact = create!(title: title, kind: kind, design_kit_id: design_kit_id)
-      artifact.send(:append_version!, title: title, kind: kind, content: content, author: author, file: file)
+      artifact.send(:append_version!, title: title, kind: kind, content: content, author: author, file: file, actor: actor)
       artifact
     end
   end
@@ -37,38 +44,50 @@ class Artifact < ApplicationRecord
     archived_at && archived_at + RETENTION
   end
 
-  def revise!(expected_version:, title:, content:, author:, file: nil, kind: nil, design_tokens: nil)
+  def revise!(expected_version:, title:, content:, author:, file: nil, kind: nil, design_tokens: nil, actor: nil)
     with_lock do
       raise Conflict, "Archived artifacts can't be edited. Restore it first." if archived?
-      raise Conflict, "This artifact changed since you opened it." unless current_version.number == Integer(expected_version, exception: false)
-      append_version!(title: title, kind: kind || self.kind, content: content, author: author, file: file, design_tokens: design_tokens)
+      raise Conflict.new("This artifact changed since you opened it.", current_version: current_version.number) unless current_version.number == Integer(expected_version, exception: false)
+      append_version!(title: title, kind: kind || self.kind, content: content, author: author, file: file, design_tokens: design_tokens, actor: actor)
     end
   end
 
-  # Public always means the latest version (founder, 2026-11-11).
   def publish!
     with_lock do
       raise Conflict, "Archived artifacts can't be published. Restore it first." if archived?
-      update!(published_version: current_version)
+      pin = public_version_number.present? || ENV.fetch("KILAT_PUBLIC_LINKS", "latest") == "pinned"
+      update!(published_version: current_version, public_version_number: (current_version.number if pin))
     end
   end
 
   def unpublish!
-    with_lock { update!(published_version: nil) }
+    with_lock { update!(published_version: nil, public_version_number: nil) }
+  end
+
+  def public_version
+    return unless published_version_id
+    public_version_number ? versions.find_by!(number: public_version_number) : published_version
+  end
+
+  def update_public_link!
+    with_lock do
+      raise Conflict, "This artifact has no pinned public link." unless published_version_id && public_version_number
+      update!(public_version_number: current_version.number, published_version: current_version)
+    end
   end
 
   # Delete for the owner: public access ends now, data stays for RETENTION.
   def archive!
-    with_lock { update!(archived_at: Time.current, published_version: nil) unless archived? }
+    with_lock { update!(archived_at: Time.current, published_version: nil, public_version_number: nil) unless archived? }
   end
 
   def unarchive!
     with_lock { update!(archived_at: nil) }
   end
 
-  def restore!(version_id:, expected_version:, author:)
+  def restore!(version_id:, expected_version:, author:, actor: nil)
     version = versions.find(version_id)
-    revise!(expected_version: expected_version, title: version.title, kind: version.kind, content: version.content, author: author, file: version.file.attached? ? version.file.blob : nil, design_tokens: version.design_tokens)
+    revise!(expected_version: expected_version, title: version.title, kind: version.kind, content: version.content, author: author, actor: actor, file: version.file.attached? ? version.file.blob : nil, design_tokens: version.design_tokens)
   end
 
   def purge!(now: Time.current)
@@ -95,14 +114,13 @@ class Artifact < ApplicationRecord
     errors.add(:design_kit, "must belong to this workspace") if design_kit && design_kit.workspace_id != workspace_id
   end
 
-  # A public artifact's link always shows its latest version (founder, 2026-11-11), so a new
-  # version goes live at once; a private artifact stays private.
-  def append_version!(title:, kind:, content:, author:, file:, design_tokens: nil)
+  def append_version!(title:, kind:, content:, author:, file:, design_tokens: nil, actor: nil)
     tokens = design_tokens || (design_kit&.tokens || DesignKit::DEFAULT_TOKENS).merge("kit_version" => design_kit&.version, "kit_name" => design_kit&.name)
     version = versions.build(number: (current_version&.number || 0) + 1, title: title, kind: kind, content: content.to_s, author: author, design_tokens: tokens)
+    version.assign_actor(actor || Current.user)
     version.file.attach(file || current_version.file.blob) if file || (kind == "file" && current_version&.file&.attached?)
     version.save!
-    update!(title: title, kind: kind, current_version: version, published_version: (version if published_version_id))
+    update!(title: title, kind: kind, current_version: version, published_version: (public_version_number ? published_version : version if published_version_id))
     version
   end
 end
