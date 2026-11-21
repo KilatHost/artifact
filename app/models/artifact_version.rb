@@ -5,8 +5,9 @@ class ArtifactVersion < ApplicationRecord
   validates :title, :author, presence: true, length: { maximum: 200 }
   validates :kind, inclusion: { in: Artifact::KINDS }
   validates :number, numericality: { only_integer: true, greater_than: 0 }
-  validates :content, length: { maximum: 1_000_000 }
+  validates :content, length: { maximum: 1_000_000 }, unless: -> { ArtifactTypes::KINDS.include?(kind) }
   validate :valid_file
+  validate :valid_typed_content
   before_validation(on: :create) { self.content = ArtifactRendering.sanitize_document(content) if kind == "document" }
   before_update { raise ActiveRecord::ReadOnlyRecord, "Artifact versions are immutable" }
   before_destroy { raise ActiveRecord::ReadOnlyRecord, "Artifact versions are immutable" }
@@ -25,6 +26,13 @@ class ArtifactVersion < ApplicationRecord
   end
 
   private
+
+  def valid_typed_content
+    return unless ArtifactTypes::KINDS.include?(kind)
+    self.content = ArtifactTypes.validate!(kind, content).last
+  rescue ArtifactTypes::Invalid => error
+    errors.add(:content, error.message)
+  end
 
   def valid_file
     errors.add(:file, "is required") if kind == "file" && !file.attached?

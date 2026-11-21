@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilat.host/schemas/artifact_types/slides.json",
+  "title": "Kilat Slides source",
+  "description": "A deck (promo, pitch, training) from fixed layouts. Rendered to a page, .pptx and PDF by artifact-render.",
+  "type": "object",
+  "required": ["kind", "slides"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "slides" },
+    "ratio": { "enum": ["16:9"] },
+    "slides": { "type": "array", "minItems": 1, "maxItems": 40, "items": { "$ref": "#/$defs/slide" } }
+  },
+  "$defs": {
+    "title": { "type": "string", "maxLength": 120 },
+    "line": { "type": "string", "maxLength": 300 },
+    "lines": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/line" } },
+    "cell": { "type": ["string", "number", "null"], "maxLength": 200 },
+    "slide": {
+      "oneOf": [
+        { "$ref": "#/$defs/title-slide" }, { "$ref": "#/$defs/bullets" }, { "$ref": "#/$defs/big-number" },
+        { "$ref": "#/$defs/two-column" }, { "$ref": "#/$defs/table" }, { "$ref": "#/$defs/closing" }
+      ]
+    },
+    "title-slide": {
+      "type": "object", "required": ["layout", "title"], "additionalProperties": false,
+      "properties": { "layout": { "const": "title" }, "title": { "$ref": "#/$defs/title" }, "subtitle": { "$ref": "#/$defs/line" } }
+    },
+    "bullets": {
+      "type": "object", "required": ["layout", "title", "bullets"], "additionalProperties": false,
+      "properties": { "layout": { "const": "bullets" }, "title": { "$ref": "#/$defs/title" }, "bullets": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/line" } } }
+    },
+    "big-number": {
+      "type": "object", "required": ["layout", "number"], "additionalProperties": false,
+      "properties": { "layout": { "const": "big-number" }, "number": { "type": "string", "maxLength": 20 }, "caption": { "$ref": "#/$defs/line" } }
+    },
+    "two-column": {
+      "type": "object", "required": ["layout", "title", "left", "right"], "additionalProperties": false,
+      "properties": { "layout": { "const": "two-column" }, "title": { "$ref": "#/$defs/title" }, "left": { "$ref": "#/$defs/lines" }, "right": { "$ref": "#/$defs/lines" } }
+    },
+    "table": {
+      "type": "object", "required": ["layout", "title", "head", "rows"], "additionalProperties": false,
+      "properties": {
+        "layout": { "const": "table" }, "title": { "$ref": "#/$defs/title" },
+        "head": { "type": "array", "minItems": 1, "maxItems": 6, "items": { "$ref": "#/$defs/line" } },
+        "rows": { "type": "array", "maxItems": 10, "items": { "type": "array", "maxItems": 6, "items": { "$ref": "#/$defs/cell" } } }
+      }
+    },
+    "closing": {
+      "type": "object", "required": ["layout", "title"], "additionalProperties": false,
+      "properties": { "layout": { "const": "closing" }, "title": { "$ref": "#/$defs/title" }, "text": { "$ref": "#/$defs/line" } }
+    }
+  }
+}

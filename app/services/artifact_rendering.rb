@@ -58,12 +58,14 @@ class ArtifactRendering
     tokens = DesignKit::DEFAULT_TOKENS.merge(version.design_tokens)
     title = ERB::Util.html_escape(version.title)
     body = case version.kind
+    when *ArtifactTypes::KINDS then ArtifactTypedHtml.body(version)
     when "document" then "<main>#{sanitize_document(version.content)}</main>"
     when "markdown" then "<main>#{markdown(version.content)}</main>"
     when "file" then "<main><p>Download the original file to view this artifact.</p></main>"
     else version.content
     end
     css = "body{font-family:#{tokens.fetch('font')};background:#{tokens.fetch('background')};color:#{tokens.fetch('foreground')};margin:0;line-height:1.618;overflow-wrap:anywhere}main{max-width:880px;margin:auto;padding:34px}a{color:#{tokens.fetch('accent')}}img,svg,video{max-width:100%}pre{white-space:pre-wrap}code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}pre,:not(pre)>code{background:color-mix(in srgb,currentColor 7%,transparent);border-radius:6px}pre{padding:13px}:not(pre)>code{padding:1px 5px}blockquote{margin:21px 0;padding-left:21px;border-left:3px solid color-mix(in srgb,currentColor 25%,transparent)}hr{border:0;border-top:1px solid color-mix(in srgb,currentColor 20%,transparent);margin:34px 0}table{border-collapse:collapse;width:100%}td,th{border:1px solid color-mix(in srgb,currentColor 25%,transparent);padding:8px;text-align:left}li:has(>input[type=checkbox]){list-style:none;margin-left:-1.2em}li>input[type=checkbox]{margin-right:8px}@page{margin:15mm}@media print{main{padding:0}body{background:white;color:black}a{color:inherit}h1,h2,h3{break-after:avoid}tr,img{break-inside:avoid}}"
+    css += ":root{--accent:#{tokens.fetch('accent')}}#{ArtifactTypedHtml.css(version.kind)}" if ArtifactTypes::KINDS.include?(version.kind)
     "<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><base target=\"_blank\"><title>#{title}</title><style>#{css}</style></head><body>#{body}</body></html>"
   end
 end

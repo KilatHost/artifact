@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilat.host/schemas/artifact_types/sheet.json",
+  "title": "Kilat Sheet source",
+  "description": "A spreadsheet (price list, stock, budget) as tabs of cells. A cell is a value, null, or {\"f\": \"=...\"} using only SUM, AVERAGE, IF, ROUND, MIN, MAX, COUNT, VLOOKUP and arithmetic. Rendered to a page, .xlsx and PDF by artifact-render.",
+  "type": "object",
+  "required": ["kind", "tabs"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "sheet" },
+    "tabs": { "type": "array", "minItems": 1, "maxItems": 5, "items": { "$ref": "#/$defs/tab" } }
+  },
+  "$defs": {
+    "tab": {
+      "type": "object", "required": ["name", "columns", "rows"], "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 31, "pattern": "^[^\\[\\]:*?/\\\\]+$" },
+        "columns": { "type": "array", "minItems": 1, "maxItems": 26, "items": { "$ref": "#/$defs/column" } },
+        "rows": { "type": "array", "maxItems": 2000, "items": { "type": "array", "maxItems": 26, "items": { "$ref": "#/$defs/cell" } } }
+      }
+    },
+    "column": {
+      "type": "object", "required": ["title"], "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string", "maxLength": 100 },
+        "format": { "enum": [null, "int", "idr", "pct", "date", "text"] }
+      }
+    },
+    "cell": {
+      "type": ["string", "number", "boolean", "null", "object"],
+      "maxLength": 1000,
+      "required": ["f"],
+      "additionalProperties": false,
+      "properties": { "f": { "type": "string", "minLength": 2, "maxLength": 1000, "pattern": "^=" } }
+    }
+  }
+}

@@ -1,6 +1,25 @@
 require "test_helper"
 
 class McpHttpTest < ActionDispatch::IntegrationTest
+  test "MCP creates and reads a sheet and names invalid fields as tool errors" do
+    _, secret = ApiToken.issue!(workspace: @workspace, name: "Typed", scopes: %w[read write])
+    headers = { "Content-Type" => "application/json", "Accept" => "application/json, text/event-stream", "Authorization" => "Bearer #{secret}" }
+    source = { kind: "sheet", tabs: [ { name: "Budget", columns: [ { title: "Cost" } ], rows: [ [ 10 ], [ { f: "=SUM(A2:A2)" } ] ] } ] }.to_json
+    call = lambda do |name, arguments|
+      post "/mcp", params: { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: name, arguments: arguments } }.to_json, headers: headers
+      assert_response :success
+      JSON.parse(response.body).fetch("result")
+    end
+    result = call.call("create_artifact", { request_id: "typed-sheet", title: "Budget", kind: "sheet", content: source })
+    refute result["isError"]
+    id = JSON.parse(result.fetch("content")[0].fetch("text")).fetch("id")
+    result = call.call("get_artifact", { id: id })
+    assert_equal source, JSON.parse(result.fetch("content")[0].fetch("text")).fetch("content")
+    result = call.call("create_artifact", { request_id: "bad-sheet", title: "Bad", kind: "sheet", content: '{"kind":"sheet"}' })
+    assert result["isError"]
+    assert_includes result.fetch("content")[0].fetch("text"), "Content source.tabs is required"
+  end
+
   setup do
     @owner = User.create!(email: "http-#{SecureRandom.hex(6)}@example.test", password: "test-password-long-enough")
     @workspace = @owner.create_workspace!(name: "HTTP")

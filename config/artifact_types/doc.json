@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://kilat.host/schemas/artifact_types/doc.json",
+  "title": "Kilat Doc source",
+  "description": "A document (invoice, letter, quote, report) as blocks. Rendered to a page, .docx and PDF by artifact-render.",
+  "type": "object",
+  "required": ["kind", "blocks"],
+  "additionalProperties": false,
+  "properties": {
+    "kind": { "const": "doc" },
+    "page": { "enum": ["A4"] },
+    "logo": { "type": "string", "maxLength": 280000, "pattern": "^data:image/(png|jpeg);base64,[A-Za-z0-9+/=]+$", "description": "PNG or JPEG data URI, at most 200 KB decoded." },
+    "blocks": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "$ref": "#/$defs/block" } }
+  },
+  "$defs": {
+    "text": { "type": "string", "maxLength": 5000 },
+    "short": { "type": "string", "maxLength": 300 },
+    "cell": { "type": ["string", "number", "null"], "maxLength": 1000 },
+    "format": { "enum": [null, "int", "idr", "pct", "date", "text"] },
+    "block": {
+      "oneOf": [
+        { "$ref": "#/$defs/heading" }, { "$ref": "#/$defs/paragraph" }, { "$ref": "#/$defs/fields" }, { "$ref": "#/$defs/table" },
+        { "$ref": "#/$defs/list" }, { "$ref": "#/$defs/totals" }, { "$ref": "#/$defs/signature" }, { "$ref": "#/$defs/pagebreak" }
+      ]
+    },
+    "heading": {
+      "type": "object", "required": ["t", "text"], "additionalProperties": false,
+      "properties": { "t": { "const": "heading" }, "text": { "$ref": "#/$defs/short" }, "level": { "type": "integer", "minimum": 1, "maximum": 3 } }
+    },
+    "paragraph": {
+      "type": "object", "required": ["t", "text"], "additionalProperties": false,
+      "properties": { "t": { "const": "paragraph" }, "text": { "$ref": "#/$defs/text" } }
+    },
+    "fields": {
+      "type": "object", "required": ["t", "rows"], "additionalProperties": false,
+      "properties": {
+        "t": { "const": "fields" },
+        "rows": { "type": "array", "minItems": 1, "maxItems": 50, "items": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/short" } } }
+      }
+    },
+    "table": {
+      "type": "object", "required": ["t", "head", "rows"], "additionalProperties": false,
+      "properties": {
+        "t": { "const": "table" },
+        "head": { "type": "array", "minItems": 1, "maxItems": 12, "items": { "$ref": "#/$defs/short" } },
+        "format": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/format" } },
+        "rows": { "type": "array", "maxItems": 500, "items": { "type": "array", "maxItems": 12, "items": { "$ref": "#/$defs/cell" } } }
+      }
+    },
+    "list": {
+      "type": "object", "required": ["t", "items"], "additionalProperties": false,
+      "properties": {
+        "t": { "const": "list" },
+        "items": { "type": "array", "minItems": 1, "maxItems": 100, "items": { "type": "string", "maxLength": 1000 } },
+        "ordered": { "type": "boolean" }
+      }
+    },
+    "totals": {
+      "type": "object", "required": ["t", "rows"], "additionalProperties": false,
+      "properties": {
+        "t": { "const": "totals" },
+        "rows": { "type": "array", "minItems": 1, "maxItems": 20, "items": { "type": "array", "minItems": 2, "maxItems": 2, "prefixItems": [{ "$ref": "#/$defs/short" }, { "type": "number" }] } },
+        "format": { "enum": ["idr"] }
+      }
+    },
+    "signature": {
+      "type": "object", "required": ["t", "name"], "additionalProperties": false,
+      "properties": { "t": { "const": "signature" }, "name": { "$ref": "#/$defs/short" }, "role": { "$ref": "#/$defs/short" }, "place_date": { "$ref": "#/$defs/short" } }
+    },
+    "pagebreak": {
+      "type": "object", "required": ["t"], "additionalProperties": false,
+      "properties": { "t": { "const": "pagebreak" } }
+    }
+  }
+}

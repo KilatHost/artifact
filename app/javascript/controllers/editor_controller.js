@@ -9,13 +9,14 @@ export default class extends Controller {
 
   changeKind() {
     const kind = this.kindTarget.value
+    const source = ["html", "doc", "sheet", "slides"].includes(kind)
     this.documentTarget.hidden = kind !== "document"
     this.markdownTarget.hidden = kind !== "markdown"
-    this.htmlTarget.hidden = kind !== "html"
+    this.htmlTarget.hidden = !source
     this.fileTarget.hidden = kind !== "file"
     this.documentInputTarget.disabled = kind !== "document"
     this.markdownInputTarget.disabled = kind !== "markdown"
-    this.htmlInputTarget.disabled = kind !== "html"
+    this.htmlInputTarget.disabled = !source
     this.fileInputTarget.disabled = kind !== "file"
   }
 
