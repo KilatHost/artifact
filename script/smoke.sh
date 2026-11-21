@@ -5,8 +5,6 @@ set -euo pipefail
 BASE=http://localhost:3000
 WORK=$(mktemp -d)
 JAR=$WORK/cookies
-PROJECT=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')
-VOLUME=${PROJECT}_artifact_storage
 trap 'rm -rf "$WORK"' EXIT
 
 step() { printf '\n== %s\n' "$*"; }
@@ -17,7 +15,7 @@ token() { curl -fsS -b "$JAR" -c "$JAR" "$BASE$1" | meta_token; }
 location() { grep -i '^location:' | tr -d '\r' | awk '{print $2}'; }
 
 step "Start"
-docker compose up -d
+docker compose up -d --wait
 wait_up
 
 step "Sign up"
@@ -77,20 +75,21 @@ wait_up
 check_data
 echo "restart ok"
 
+# Backup and restore use the commands documented in deploy.md.
 step "Back up"
-docker compose exec -T db pg_dump -U kilat -Fc kilat_artifact_production > "$WORK/db.dump"
-docker run --rm -v "$VOLUME":/data -v "$WORK":/backup alpine tar czf /backup/storage.tgz -C /data .
-ls -l "$WORK/db.dump" "$WORK/storage.tgz"
+docker compose stop web jobs
+docker compose exec -T db pg_dump -U kilat -d kilat_artifact_production -Fc > "$WORK/db.dump"
+docker compose run --rm --no-deps -T --entrypoint tar web -C /rails/storage -czf - . > "$WORK/storage.tar.gz"
+docker compose start web jobs
+wait_up
+ls -l "$WORK/db.dump" "$WORK/storage.tar.gz"
 
-step "Destroy and restore"
+step "Destroy and restore into fresh volumes"
 docker compose down -v
-docker compose up -d db
-for _ in $(seq 1 30); do docker compose exec -T db pg_isready -U kilat >/dev/null 2>&1 && break; sleep 2; done
-docker compose exec -T db pg_restore -U kilat -d kilat_artifact_production --clean --if-exists --no-owner < "$WORK/db.dump"
-docker volume create "$VOLUME" >/dev/null
-docker run --rm -v "$VOLUME":/data -v "$WORK":/backup alpine tar xzf /backup/storage.tgz -C /data
-docker run --rm -v "$VOLUME":/data alpine chown -R 1000:1000 /data
-docker compose up -d
+docker compose up -d --wait db
+docker compose exec -T db pg_restore -U kilat -d kilat_artifact_production --exit-on-error --no-owner --no-privileges < "$WORK/db.dump"
+docker compose run --rm --no-deps -T --entrypoint tar web -C /rails/storage -xzf - < "$WORK/storage.tar.gz"
+docker compose up -d --wait
 wait_up
 check_data
 echo "restore ok"

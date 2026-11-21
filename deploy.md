@@ -2,7 +2,7 @@
 
 This guide covers the current single-host Docker Compose deployment, plus requirements for a managed cloud installation. It does not provision infrastructure or describe a live Kilat Cloud service.
 
-> **Release status:** every change runs a Docker Compose check on Linux in CI (build, sign-up, publish, PDF inside the container, file round trip, refused oversized upload, restart, backup, destroy and restore, purge). The image has also run on ARM64 behind Caddy with Claude connected over OAuth. S3 storage and load have not been tested. Complete the acceptance checklist before using real customer data.
+> **Release status:** every change runs a Docker Compose check on Linux in CI (build, sign-up, publish, PDF inside the container, file round trip, refused oversized upload, restart, the backup and restore commands below, purge). The image has also run on ARM64 behind Caddy with Claude connected over OAuth. S3 storage and load have not been tested. Complete the acceptance checklist before using real customer data.
 
 ## 1. Prepare and start
 
@@ -13,14 +13,14 @@ This guide covers the current single-host Docker Compose deployment, plus requir
 - A hostname and HTTPS reverse proxy for remote users or hosted AI connectors.
 - x86_64 or ARM64 (both are tested).
 
-No host Ruby, Node or PostgreSQL installation is needed. Ruby **3.3.13** and Chromium are installed in the image, which builds on the host with `docker compose build`.
+No host Ruby, Node or PostgreSQL installation is needed. Ruby **3.3.13** and Chromium are installed in the image. Each release publishes a multi-arch image (`linux/amd64`, `linux/arm64`) as `ghcr.io/kilathost/artifact:<version>`; `ARTIFACT_VERSION` in `.env` selects it. `docker compose build` builds the same image from your checkout instead.
 
 There is no measured minimum host size yet. A 2 vCPU / 2 GB ARM instance (AWS t4g.small) with 2 GB of swap built the image and served one user, but was not load-tested. PDF requests launch Chromium synchronously in the web process; size for concurrent renders, not just idle Rails memory.
 
 ### Install
 
 ```sh
-git clone https://github.com/KilatHost/artifact.git
+git clone --branch v1.0.0 https://github.com/KilatHost/artifact.git
 cd artifact
 cp .env.example .env
 chmod 600 .env
@@ -34,6 +34,7 @@ Edit `.env`, using separate generated values:
 | --- | --- |
 | `SECRET_KEY_BASE` | Strong persistent secret for Rails signing/session protection |
 | `POSTGRES_PASSWORD` | Independent hex password; Compose inserts it into a database URL |
+| `ARTIFACT_VERSION` | Release image to run; matches the checked-out tag. Change it only during an upgrade |
 | `APP_HOST` | Hostname only, without scheme, path or port; `localhost` for local access |
 | `PORT` | Host loopback port; default `3000` |
 | `FORCE_SSL` | `false` for local HTTP; `true` behind correctly configured HTTPS proxy |
@@ -45,13 +46,15 @@ Never commit `.env`, credential keys, database dumps or uploaded files. Preserve
 
 ```sh
 docker compose config --quiet
-docker compose build
-docker compose up -d
+docker compose pull
+docker compose up -d --wait
 curl --fail http://localhost:3000/up
 docker compose ps
 ```
 
-Compose starts a private PostgreSQL 17 service, waits for its health check, then starts Rails (`web`) and the `jobs` service that purges deleted artifacts. The web entrypoint runs `db:prepare`, creating or migrating the configured database. Uploaded files and PostgreSQL data use separate named volumes.
+To verify the image, compare the digest that `docker buildx imagetools inspect ghcr.io/kilathost/artifact:<version>` reports with the digest on the GitHub release; the release's `SHA256SUMS` covers its source archive and digest file. To run your own build, use `docker compose up -d --build --wait`; it is tagged with the same image name, so pull again before returning to the published image.
+
+Compose starts a private PostgreSQL 17 service, waits for its health check, then starts Rails (`web`) and the `jobs` service that purges deleted artifacts. The web entrypoint runs `db:prepare`, creating or migrating the configured database. Uploaded files and PostgreSQL data use separate named volumes. `--wait` returns once `web` answers its `/up` health check; on a fresh install that includes creating the database.
 
 Open <http://localhost:3000>, then create the first account. There is no seeded administrator or default password. Each account owns one workspace. After the first account, sign-up is closed unless you set `ALLOW_SIGNUP=true`. Create your account before you expose a new instance publicly: the first visitor to sign up becomes an owner.
 
@@ -133,45 +136,80 @@ Keep the bucket private, encrypt it, enable suitable retention/versioning and gr
 
 ### Back up
 
-Back up database and blobs as one consistent checkpoint. For the current single-host deployment, stop web writes while taking both. Commands below write sensitive backup files on the host; protect and encrypt them before copying off-host.
+Back up database and blobs as one consistent checkpoint. For the current single-host deployment, stop the `web` and `jobs` services (the purge job also deletes data) while taking both. Commands below write sensitive backup files on the host; protect and encrypt them before copying off-host.
 
 ```sh
 mkdir -p backups
 chmod 700 backups
 backup_id=$(date -u +%Y%m%dT%H%M%SZ)
 umask 077
-docker compose stop web
+docker compose stop web jobs
 docker compose exec -T db pg_dump -U kilat -d kilat_artifact_production -Fc > "backups/${backup_id}.dump"
-docker compose run --rm --no-deps --entrypoint tar web -C /rails/storage -czf - . > "backups/${backup_id}-storage.tar.gz"
-docker compose start web
+docker compose run --rm --no-deps -T --entrypoint tar web -C /rails/storage -czf - . > "backups/${backup_id}-storage.tar.gz"
+{ grep '^ARTIFACT_VERSION=' .env || echo 'ARTIFACT_VERSION= (unset: source install)'; git describe --tags --always; } > "backups/${backup_id}.version"
+docker compose start web jobs
 ```
 
-Run each command only after the preceding one succeeds. If a backup command fails, do not label that checkpoint complete; restart the web service after resolving the failure. Preserve the matching application revision, deployment configuration and secrets separately. Encrypt backups, store an off-host copy and verify retention against available disk.
+Run each command only after the preceding one succeeds. If a backup command fails, do not label that checkpoint complete; restart the services after resolving the failure. The `.version` file records the release image and the checked-out revision the checkpoint belongs to. Preserve the deployment configuration and secrets (`.env`, including `SECRET_KEY_BASE`) separately. Encrypt backups, store an off-host copy and verify retention against available disk.
 
 S3 deployments need a matching object checkpoint or a tested version-recovery strategy instead of the local storage archive. A database dump alone is not an artifact backup.
 
 ### Restore
 
-Restore first into an isolated environment, never over the only copy of customer data.
+Restore first into an isolated environment, never over the only copy of customer data. The commands below restore a checkpoint into a second Compose project with its own empty volumes, on port 3001 of the same host. To restore on another host, copy the checkout, `.env` and backup files there first.
 
-1. Select matching database/blob backups and the recorded application revision.
-2. Prepare a separate deployment with fresh empty volumes and a separate hostname. Keep public access disabled.
-3. Start PostgreSQL only: `docker compose up -d db`.
-4. Restore the dump into its empty database with `pg_restore --exit-on-error --no-owner --no-privileges`, using the deployment's database user. Restore the storage archive into `/rails/storage` as the Rails UID/GID `1000:1000`.
-5. Start the application. Inspect migrations before allowing the entrypoint to change a restored older database.
-6. Verify owner login, original file bytes, version history, a private download and PDF export. Confirm unrelated users cannot access private artifacts.
-7. Record the restore result and recovery time. Only then consider replacing a damaged deployment.
+1. Select matching database and storage backups. Check out the revision named in the checkpoint's `.version` file and use the same `.env` (at least the same `SECRET_KEY_BASE` and `ARTIFACT_VERSION`).
+2. Choose a project name that has never held data, and keep public access disabled. Start PostgreSQL only, then restore the dump into its empty database and the storage archive into `/rails/storage` (the archive extracts as the image's Rails user, UID/GID `1000:1000`):
 
-CI runs a short version of this drill on every change (`script/smoke.sh`: dump and storage archive, `down -v`, restore into fresh volumes, check a public page and file bytes). Run the full procedure with your own backups before relying on it, and record your recovery time.
+   ```sh
+   backup_id=20261121T101500Z   # the checkpoint to restore
+   export COMPOSE_PROJECT_NAME=artifact-restore PORT=3001
+   docker compose up -d --wait db
+   docker compose exec -T db pg_restore -U kilat -d kilat_artifact_production --exit-on-error --no-owner --no-privileges < "backups/${backup_id}.dump"
+   docker compose run --rm --no-deps -T --entrypoint tar web -C /rails/storage -xzf - < "backups/${backup_id}-storage.tar.gz"
+   ```
+
+3. Start the application. The entrypoint migrates a database from an older release; review the changelog before you start a newer image against it.
+
+   ```sh
+   docker compose up -d --wait
+   curl --fail http://localhost:3001/up
+   ```
+
+4. Verify owner login, artifact source and version history, original file bytes, a private download and PDF export. Confirm unrelated users cannot access private artifacts.
+5. Record the restore result and recovery time. Only then consider replacing a damaged deployment. To remove the drill, run `docker compose down -v` while `COMPOSE_PROJECT_NAME` is still `artifact-restore`, then `unset COMPOSE_PROJECT_NAME PORT`.
+
+CI runs this backup and restore sequence on every change (`script/smoke.sh`: back up, `down -v`, restore into fresh volumes, check a public page and file bytes). Run the full procedure with your own backups before relying on it, and record your recovery time.
 
 ### Upgrade and rollback
 
-- Record the running source revision and retain its built image.
-- Take a verified pre-upgrade checkpoint. Review migrations for compatibility and data changes.
-- Fetch the approved release, build its image and replace the web service with `docker compose up -d --no-deps web`.
-- Verify health plus a real create/edit/export/MCP flow before ending maintenance.
+Read the [changelog](CHANGELOG.md) entries between your version and the target. The entrypoint runs database migrations when `web` starts.
 
-A code rollback is safe only when the previous application supports the current schema. Otherwise restore the matching pre-upgrade database and blobs during maintenance. That loses writes made after the checkpoint; obtain explicit approval before taking that path. Do not blindly run migrations down or restore over current data.
+1. Record the running release and image, then take a checkpoint as in [Back up](#back-up):
+
+   ```sh
+   grep '^ARTIFACT_VERSION=' .env
+   docker compose images web
+   ```
+
+2. Check out the target release, select its image and start it:
+
+   ```sh
+   version=1.0.0   # the target release
+   git fetch --tags
+   git checkout "v${version}"
+   sed -i "s/^ARTIFACT_VERSION=.*/ARTIFACT_VERSION=${version}/" .env
+   grep -o '^[A-Z_]*=' .env.example | grep -vxFf <(grep -o '^[A-Z_]*=' .env)   # settings new in this release, if any
+   docker compose pull
+   docker compose up -d --wait
+   curl --fail http://localhost:3000/up
+   ```
+
+3. Verify health plus a real create, edit, export and MCP flow before ending maintenance.
+
+**From a source install before 1.0.0** (cloned from `main` and started with `docker compose up --build`): `.env` has no `ARTIFACT_VERSION` line, so run `echo "ARTIFACT_VERSION=${version}" >> .env` instead of the `sed` line. Keep the same checkout directory, or set the same `COMPOSE_PROJECT_NAME`, so Compose keeps using the existing volumes. The previous locally built images stay on the host for rollback.
+
+**Rollback.** A code rollback is safe only when the previous release supports the current schema; the changelog says when a release's migrations are not backward compatible. Then check out the previous tag, set its `ARTIFACT_VERSION` and run `docker compose up -d --wait`. Otherwise restore the matching pre-upgrade checkpoint during maintenance. That loses writes made after the checkpoint; obtain explicit approval before taking that path. Do not blindly run migrations down or restore over current data.
 
 ## 3. Acceptance, monitoring and cloud limits
 

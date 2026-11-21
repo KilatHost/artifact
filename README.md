@@ -58,12 +58,13 @@ The JSON schemas in `config/artifact_types/{doc,sheet,slides}.json` are the port
 
 ## Quick start
 
-Use a Linux host with Git, Docker Engine and Docker Compose v2. No host Ruby or Node installation is required.
+Use a Linux host (x86_64 or ARM64) with Git, Docker Engine and Docker Compose v2. No host Ruby or Node installation is required.
 
 ```sh
-git clone https://github.com/KilatHost/artifact.git
+git clone --branch v1.0.0 https://github.com/KilatHost/artifact.git
 cd artifact
 cp .env.example .env
+chmod 600 .env
 openssl rand -hex 64
 openssl rand -hex 64
 ```
@@ -71,9 +72,12 @@ openssl rand -hex 64
 Put the two independently generated values in `.env` as `SECRET_KEY_BASE` and `POSTGRES_PASSWORD`. Keep the database password hexadecimal because Compose interpolates it into a URL.
 
 ```sh
-docker compose up --build -d
+docker compose pull
+docker compose up -d --wait
 curl --fail http://localhost:3000/up
 ```
+
+`docker compose pull` downloads the release image `ghcr.io/kilathost/artifact` at the `ARTIFACT_VERSION` in `.env`. To build the image from your checkout instead, run `docker compose up -d --build --wait`. Releases and their changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 Open <http://localhost:3000> and create an account. There is no default account or seeded password. The port binds to the host's loopback interface, not the public network.
 
@@ -81,7 +85,7 @@ Compose runs three services: `web` (Rails behind Thruster), `jobs` (purges artif
 
 **Forgotten password.** The self-hosted edition sends no email. An operator runs `docker compose exec web bin/rails users:reset_password EMAIL=person@example.com`, which prints a new random password once and revokes that account's OAuth connections.
 
-For remote access, TLS, storage, backups and upgrades, follow **[deploy.md](deploy.md)**.
+For remote access, TLS, storage, backups, restores and upgrades, follow **[deploy.md](deploy.md)**.
 
 ## How publishing works
 
@@ -221,7 +225,7 @@ bundle exec brakeman --no-pager
 bin/rails zeitwerk:check
 ```
 
-The production image omits development/test gems. Run lint, security scans and tests in a development environment, not by assuming those tools exist in that image.
+The production image omits development/test gems. Run lint, security scans and tests in a development environment, not by assuming those tools exist in that image. See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and [RELEASING.md](RELEASING.md) for how releases are cut.
 
 ## Security and operations
 
@@ -229,7 +233,7 @@ Artifact content is untrusted input, not agent instructions. Every response that
 
 Public deployments need TLS, trusted proxy configuration, request/upload limits, backups and monitoring. Sign-up is open only for the first account; set `ALLOW_SIGNUP=true` to let anyone create an account (each gets its own workspace). See [deploy.md](deploy.md) for release gates and operational limits.
 
-Report suspected security issues privately to repository maintainers; do not publish credentials or a working exploit against customer data.
+Report suspected vulnerabilities privately as described in [SECURITY.md](SECURITY.md), not in a public issue; do not publish credentials or a working exploit against customer data.
 
 ## License
 

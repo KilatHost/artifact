@@ -1,0 +1,148 @@
+name: Release
+
+# Pushing a vX.Y.Z tag runs CI, publishes multi-arch images to
+# ghcr.io/kilathost/artifact and opens a draft GitHub release with the
+# source archive and SHA-256 checksums. Pull requests that touch the image
+# build both architectures without publishing. See RELEASING.md.
+on:
+  push:
+    tags: [ "v*.*.*" ]
+  pull_request:
+    paths: [ "Dockerfile", ".dockerignore", ".github/workflows/release.yml" ]
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/kilathost/artifact
+
+jobs:
+  verify:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        name: Check tag, VERSION, compose default and changelog agree
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [ "$version" = "$(cat VERSION)" ] || { echo "Tag $GITHUB_REF_NAME does not match VERSION $(cat VERSION)"; exit 1; }
+          grep -qF ":\${ARTIFACT_VERSION:-$version}" compose.yaml || { echo "compose.yaml does not default to $version"; exit 1; }
+          grep -qx "ARTIFACT_VERSION=$version" .env.example || { echo ".env.example does not default to $version"; exit 1; }
+          grep -Eq "^## \[$version\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$" CHANGELOG.md || { echo "CHANGELOG.md needs a dated ## [$version] entry"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  ci:
+    if: github.event_name == 'push'
+    needs: verify
+    uses: ./.github/workflows/ci.yml
+
+  image:
+    needs: [ verify, ci ]
+    if: ${{ !failure() && !cancelled() }}
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          outputs: ${{ github.event_name == 'push' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', env.IMAGE) || 'type=cacheonly' }}
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+      - if: github.event_name == 'push'
+        run: |
+          mkdir -p digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "digests/${digest#sha256:}"
+      - if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.runner }}
+          path: digests/*
+          if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'push'
+    needs: [ verify, image ]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      packages: write
+    env:
+      VERSION: ${{ needs.verify.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: digests
+          pattern: digest-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+      - name: Push the multi-arch tags
+        working-directory: digests
+        run: |
+          mapfile -t tags < <(jq -r '.tags[] | "-t", .' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          sources=()
+          for digest in *; do sources+=("$IMAGE@sha256:$digest"); done
+          docker buildx imagetools create "${tags[@]}" "${sources[@]}"
+          docker buildx imagetools inspect "$IMAGE:$VERSION"
+      - name: Build the source archive and checksums
+        run: |
+          mkdir dist
+          git archive --format=tar.gz --prefix="artifact-$VERSION/" -o "dist/artifact-$VERSION.tar.gz" "$GITHUB_REF_NAME"
+          digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
+          echo "$digest" > "dist/artifact-$VERSION-image-digest.txt"
+          (cd dist && sha256sum "artifact-$VERSION.tar.gz" "artifact-$VERSION-image-digest.txt" > SHA256SUMS)
+          awk -v v="$VERSION" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md > dist/notes.md
+          {
+            echo
+            echo "### Image"
+            echo
+            echo "    $IMAGE:$VERSION"
+            echo "    $IMAGE@$digest"
+          } >> dist/notes.md
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag --title "Kilat Artifact $VERSION" \
+            --notes-file dist/notes.md dist/artifact-*.tar.gz dist/artifact-*-image-digest.txt dist/SHA256SUMS
