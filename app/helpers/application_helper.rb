@@ -49,10 +49,11 @@ module ApplicationHelper
   end
 
   def artifact_export_formats(version)
+    return ArtifactTypes::FORMATS.fetch(version.kind) + %w[html zip source] if ArtifactTypes::KINDS.include?(version.kind)
     version.kind == "file" ? %w[file pdf html zip source] : %w[pdf html zip source]
   end
 
   def export_label(format)
-    { "file" => "Original", "pdf" => "PDF", "html" => "HTML", "zip" => "ZIP", "source" => "Source" }.fetch(format)
+    { "file" => "Original", "pdf" => "PDF", "html" => "HTML", "zip" => "ZIP", "source" => "Source", "docx" => "DOCX", "xlsx" => "XLSX", "pptx" => "PPTX" }.fetch(format)
   end
 end

@@ -11,6 +11,13 @@ class ArtifactSheetFormulas
     @active = {}
   end
 
+  def valid_syntax?(formula)
+    parse(formula)
+    true
+  rescue StandardError, SystemStackError
+    false
+  end
+
   # Excel row 1 contains column titles; rows[0] is row 2.
   def cell(row, column)
     key = [ row, column ]

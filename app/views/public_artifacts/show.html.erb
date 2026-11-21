@@ -33,9 +33,9 @@
         <details class="menu viewer-download">
           <summary class="viewer-action" aria-label="Download"><%= icon("download") %><span class="viewer-action-label">Download</span></summary>
           <div class="menu-panel menu-list">
-            <% %w[pdf html].each do |format| %>
+            <% (ArtifactTypes::FORMATS.fetch(@version.kind, %w[pdf]) + %w[html zip]).each do |format| %>
               <% path = private_preview ? export_artifact_path(@artifact, export_format: format, version_id: @version.id) : public_artifact_download_path(@artifact.public_id, export_format: format) %>
-              <%= link_to format.upcase, path, data: { turbo: false } %>
+              <%= link_to export_label(format), path, data: { turbo: false } %>
             <% end %>
           </div>
         </details>
