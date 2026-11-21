@@ -19,6 +19,8 @@ require "rails/test_unit/railtie"
 Bundler.require(*Rails.groups)
 
 module KilatArtifact
+  VERSION = File.read(File.expand_path("../VERSION", __dir__)).strip
+
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1

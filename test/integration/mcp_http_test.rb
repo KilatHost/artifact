@@ -40,6 +40,7 @@ class McpHttpTest < ActionDispatch::IntegrationTest
     post "/mcp", params: { jsonrpc: "2.0", id: 2, method: "initialize", params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "Check", version: "1" } } }.to_json, headers: headers
     assert_response :success
     assert_equal "kilat", JSON.parse(response.body).dig("result", "serverInfo", "name")
+    assert_equal KilatArtifact::VERSION, JSON.parse(response.body).dig("result", "serverInfo", "version")
     post "/mcp", params: { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "list_artifacts", arguments: {} } }.to_json, headers: headers
     assert_response :success
     refute JSON.parse(response.body).dig("result", "isError")

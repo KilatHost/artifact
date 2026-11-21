@@ -1,5 +1,8 @@
+# Runs the release image named by ARTIFACT_VERSION. `docker compose up -d --build`
+# builds this checkout instead and tags the result with the same name.
 services:
   web:
+    image: ${ARTIFACT_IMAGE:-ghcr.io/kilathost/artifact}:${ARTIFACT_VERSION:-1.0.0}
     build: .
     ports:
       - "127.0.0.1:${PORT:-3000}:80"
@@ -20,8 +23,15 @@ services:
     volumes:
       - artifact_storage:/rails/storage
     shm_size: 256mb
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost/up"]
+      interval: 5s
+      timeout: 5s
+      start_period: 120s
+      retries: 6
     restart: unless-stopped
   jobs:
+    image: ${ARTIFACT_IMAGE:-ghcr.io/kilathost/artifact}:${ARTIFACT_VERSION:-1.0.0}
     build: .
     # Purges artifacts deleted more than 7 days ago, once an hour.
     command: ["bash", "-c", "while true; do sleep 300; ./bin/rails artifacts:purge_archived || true; sleep 3300; done"]
