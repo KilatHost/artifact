@@ -41,8 +41,6 @@ class PublicArtifactsController < ActionController::Base
       format = params[:export_format]
       raise ActiveRecord::RecordNotFound unless ArtifactTypes::FORMATS.fetch(@version.kind, []).include?(format)
       send_data ArtifactOffice.generate(@version, format), filename: "#{name}.#{format}", type: ArtifactTypes::CONTENT_TYPES.fetch(format), disposition: "attachment"
-    when "zip"
-      send_data ArtifactExports.zip(@version), filename: "#{name}.zip", type: "application/zip"
     when "pdf"
       pdf = ArtifactExports.pdf(@version)
       return render plain: "Another PDF is being made. Try again in a few seconds.", status: :service_unavailable unless pdf

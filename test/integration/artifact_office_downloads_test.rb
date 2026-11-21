@@ -26,7 +26,7 @@ class ArtifactOfficeDownloadsTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "public downloads require publication and offer Office PDF HTML and ZIP" do
+  test "public downloads require publication and offer Office PDF and HTML without ZIP" do
     @artifacts.each do |artifact|
       format = ArtifactTypes.primary_format(artifact.kind)
       get public_artifact_download_path(artifact.public_id, export_format: format)
@@ -34,12 +34,25 @@ class ArtifactOfficeDownloadsTest < ActionDispatch::IntegrationTest
       artifact.publish!
       get public_artifact_path(artifact.public_id)
       assert_response :success
-      [ format, "pdf", "html", "zip" ].each { |f| assert_select "a[href*='export_format=#{f}']", text: f.upcase }
+      [ format, "pdf", "html" ].each { |f| assert_select "a[href*='export_format=#{f}']", text: f.upcase }
+      assert_select "a[href*='export_format=zip']", count: 0
       get public_artifact_download_path(artifact.public_id, export_format: format)
       assert_download(artifact, format)
       get public_artifact_download_path(artifact.public_id, export_format: format == "docx" ? "xlsx" : "docx")
       assert_response :not_found
     end
+  end
+
+  test "public ZIP cannot expose hidden Markdown source while owner ZIP remains available" do
+    artifact = @workspace.artifacts.create_draft!(title: "Notes", kind: "markdown", content: "Public text\n<!-- private source note -->", author: "Test")
+    artifact.publish!
+    get public_artifact_download_path(artifact.public_id, export_format: "zip")
+    assert_response :bad_request
+    refute_includes response.body, "private source note"
+    post session_path, params: { email: @user.email, password: "long-test-password-123" }
+    get export_artifact_path(artifact, export_format: "zip")
+    assert_response :success
+    Zip::File.open_buffer(response.body) { |zip| assert_includes zip.read("source.md"), "private source note" }
   end
 
   private
