@@ -12,6 +12,11 @@ class PublicArtifactsController < ActionController::Base
 
   def show
     response.headers["X-Robots-Tag"] = "noindex, nofollow"
+    if @owner
+      @version = @artifact.current_version
+      @editing = params[:edit] == "1" && ArtifactEditing.editable?(@version)
+      response.headers["Referrer-Policy"] = "same-origin" if @editing
+    end
   end
 
   # The frame is only meant inside the viewer. Opened as a page of its own, an artifact's

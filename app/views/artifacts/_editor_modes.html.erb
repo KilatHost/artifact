@@ -1,0 +1,36 @@
+<% markdown = version.kind == "markdown" %>
+<% fields = markdown ? ArtifactEditing.markdown_fields(version.content) : ArtifactEditing.html_fields(version.content) %>
+<% if fields.any? %>
+  <div class="edit-modes" data-draft-editor-target="modeControls" hidden>
+    <button type="button" class="button-secondary button-sm" data-draft-editor-target="textButton" data-action="draft-editor#showText" aria-controls="draft-text-mode"><%= markdown ? "Formatted" : "Page text" %></button>
+    <button type="button" class="button-secondary button-sm" data-draft-editor-target="sourceButton" data-action="draft-editor#showSource" aria-controls="draft-source-mode">Source</button>
+  </div>
+  <div class="form-stack" id="draft-text-mode" data-draft-editor-target="textSection" hidden>
+    <% if markdown %>
+      <p class="field-hint">Edit simple headings, paragraphs and list items. Use Source for formatting, links, tables and other Markdown.</p>
+      <% fields.each do |field| %>
+        <div class="field-group">
+          <%= label_tag "markdown-line-#{field[:index]}", "#{field[:label]} · line #{field[:index] + 1}", class: "field-label" %>
+          <%= text_field_tag nil, field[:text], id: "markdown-line-#{field[:index]}", class: "field edit-markdown #{field[:style]}", data: { draft_editor_target: "markdownLine", action: "input->draft-editor#syncMarkdown", index: field[:index], prefix: field[:prefix] } %>
+        </div>
+      <% end %>
+    <% else %>
+      <p class="field-hint">Only text specifically marked by the author can be edited here. Use Source for layout or code. Only the selected mode is saved.</p>
+      <% fields.each do |name, value| %>
+        <div class="field-group">
+          <%= label_tag "html-block-#{name}", name.tr("-", "_").humanize, class: "field-label" %>
+          <%= text_area_tag "artifact[blocks][#{name}]", value, id: "html-block-#{name}", rows: 2, class: "field", disabled: true, data: { draft_editor_target: "htmlBlock" } %>
+        </div>
+      <% end %>
+    <% end %>
+  </div>
+<% end %>
+<div id="draft-source-mode" data-draft-editor-target="sourceSection">
+  <%= form.label :content, markdown ? "Markdown source" : "HTML source", class: "field-label" %>
+  <%= form.text_area :content, value: version.content, class: "field source-editor", spellcheck: markdown, rows: 16, data: { draft_editor_target: "source", action: "input->draft-editor#sourceChanged" } %>
+  <% if markdown && fields.any? %>
+    <p class="field-hint" data-draft-editor-target="sourceHint" hidden>Save and reopen the draft to use Formatted after changing the Markdown source.</p>
+  <% elsif !markdown && fields.empty? %>
+    <p class="field-hint">This HTML has no marked text blocks. Edit the source and preview your changes in the sandbox.</p>
+  <% end %>
+</div>

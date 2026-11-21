@@ -5,26 +5,32 @@
     <span class="eyebrow"><%= link_to "Artifacts", artifacts_path %> / <%= kind_label(@artifact.kind) %></span>
     <h1 class="page-heading"><%= @artifact.title %></h1>
   </div>
-  <% if published %>
-    <span class="status-badge"><span class="status-dot" data-state="published"></span>Public</span>
-  <% else %>
-    <span class="status-badge"><span class="status-dot"></span>Private</span>
-  <% end %>
+  <div class="row-actions">
+    <span class="status-badge"><span class="status-dot" data-state="<%= "published" if published %>"></span><%= published ? "Public" : "Private" %></span>
+    <% if !@editing && @version.id == @artifact.current_version_id && ArtifactEditing.editable?(@version) %>
+      <%= link_to "Edit", artifact_path(@artifact, edit: "1"), class: "button-primary" %>
+    <% end %>
+  </div>
 </div>
 
 <div class="workspace">
   <div class="stack">
-    <section class="card">
-      <div class="card-header">
-        <div>
-          <h2 class="card-title">Edit</h2>
-          <p class="card-desc"><%= @version.id == @artifact.current_version_id ? "Editing version #{@version.number}, the latest." : "Showing version #{@version.number}. Saving makes it the latest." %></p>
+    <% if @editing %>
+      <%= render "artifacts/edit_panel", viewer: false %>
+    <% elsif @version.kind == "file" && @version.id == @artifact.current_version_id %>
+      <section class="card">
+        <div class="card-header"><h2 class="card-title">File</h2></div>
+        <div class="card-body">
+          <%= form_with url: upload_artifact_path(@artifact), class: "form-stack" do |form| %>
+            <%= hidden_field_tag :expected_version, @version.number %>
+            <%= form.label :file, "Replace file (up to 20 MB)", class: "field-label" %>
+            <%= form.file_field :file, required: true, class: "field" %>
+            <div class="form-actions"><%= form.submit "Save file version", class: "button-secondary" %></div>
+          <% end %>
         </div>
-      </div>
-      <div class="card-body"><%= render "form", artifact: @artifact, version: @draft || @version %></div>
-    </section>
-
-    <section class="card">
+      </section>
+    <% end %>
+    <% unless @editing %><section class="card">
       <div class="card-header">
         <div>
           <h2 class="card-title">Preview</h2>
@@ -33,7 +39,7 @@
         <%= link_to preview_artifact_path(@artifact, version_id: @version.id), target: "_blank", rel: "noopener", class: "button-ghost button-sm" do %>Open<%= icon("external") %><% end %>
       </div>
       <iframe class="preview-frame" title="Preview of version <%= @version.number %>" sandbox="<%= ArtifactRendering::SANDBOX %>" allow="clipboard-write" referrerpolicy="no-referrer" src="<%= preview_artifact_path(@artifact, version_id: @version.id) %>"></iframe>
-    </section>
+    </section><% end %>
   </div>
 
   <aside class="stack" aria-label="Artifact actions">
