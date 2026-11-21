@@ -23,7 +23,7 @@
 
 **Open source, self-hostable, Apache-2.0.** Create and edit in your browser or through MCP from Claude and other agents. The same application is intended to power Kilat Cloud; a managed service is not available from this repository yet.
 
-> **Status:** early release. CI runs the test suite and a Docker Compose check on Linux (sign-up, publish, PDF, file round trip, restart, backup and restore). Claude has been tested over OAuth; ChatGPT, Gemini and Manus have not. S3 storage is not yet verified.
+> **Status:** early release. CI runs the test suite and a Docker Compose check on Linux (sign-up, publish, PDF, file round trip, restart, backup and restore). The claude.ai connector, MCP Inspector, MCPorter and Claude Code have connected over OAuth ([what each verified](#oauth)); Codex CLI, ChatGPT, Gemini and Manus have not been tested. S3 storage is not yet verified.
 
 ## What it does
 
@@ -116,7 +116,16 @@ For compatible remote MCP clients, enter the endpoint URL and complete browser a
 
 Authorization codes require S256 PKCE. Registered redirects must use HTTPS, except supported HTTP loopback redirects. Client registration can request a space-separated `scope`; omitted scope defaults to `read write`. Revoke grants from **Connections**.
 
-Tested: Claude, as a custom connector on claude.ai over OAuth (November 2026): sign-in, create, read, update, publish, Markdown briefs and interactive HTML decks. Not yet tested: ChatGPT, Gemini and Manus; their plans and connector capabilities may differ.
+Tested over OAuth (November 2026):
+
+| Client | Verified |
+| --- | --- |
+| Claude, custom connector on claude.ai | Sign-in, create, read, update, publish, Markdown briefs and interactive HTML decks |
+| MCP Inspector 2.16.0 | Sign-in and create a private artifact |
+| MCPorter 0.17.1 | Sign-in; read an owner's browser edit and revise it at the same URL; stale writes return `version_conflict`; revoking the connection forces new consent |
+| Claude Code 2.1.330 (remote HTTP) | Sign-in and connection only; tool calls from the model were not exercised |
+
+Inspector, MCPorter and Claude Code were tested against a local HTTPS endpoint. Not yet tested: Codex CLI, ChatGPT, Gemini and Manus; their plans and connector capabilities may differ.
 
 ### Personal tokens
 

@@ -5,7 +5,7 @@ All notable changes to Kilat Artifact are recorded here. The format follows
 [Semantic Versioning](https://semver.org/). The MCP tool contract in the README
 is part of the public API: breaking it requires a new major version.
 
-## [1.0.0] - Unreleased
+## [1.0.0] - 2026-11-21
 
 First tagged open-source release.
 
@@ -24,6 +24,11 @@ First tagged open-source release.
 - Single-host Docker Compose deployment with PostgreSQL 17, and an operator password reset task.
 - Versioned multi-arch (`linux/amd64`, `linux/arm64`) images at `ghcr.io/kilathost/artifact`, with a source archive and SHA-256 checksums on each GitHub release.
 - Upgrade, backup and restore procedures in `deploy.md`, a contribution guide and a private security reporting policy.
+
+### Fixed
+
+- DOCX, XLSX and PPTX downloads no longer carry unneeded ZIP64 headers, so LibreOffice opens them without reporting corruption ([#7](https://github.com/KilatHost/artifact/pull/7)).
+- **Connections** shows the scopes the owner actually granted to an OAuth client, not every scope the client registered for; authorization is unchanged ([#8](https://github.com/KilatHost/artifact/pull/8)).
 
 ### Known limitations
 
