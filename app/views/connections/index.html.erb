@@ -55,7 +55,7 @@
       <ul class="card-list">
         <% @oauth_clients.each do |client| %>
           <li>
-            <div><div class="row-title"><%= client.name %></div><div class="row-meta"><span>OAuth</span><span><%= client.scopes.to_s.split.map(&:capitalize).join(", ") %></span></div></div>
+            <div><div class="row-title"><%= client.name %></div><div class="row-meta"><span>OAuth</span><span><%= @oauth_scopes.fetch(client.id).map(&:capitalize).join(", ") %></span></div></div>
             <%= button_to "Revoke", connection_path(client.id, oauth: 1), method: :delete, class: "button-secondary button-sm", data: { turbo_confirm: "Revoke #{client.name}? It loses access right away." } %>
           </li>
         <% end %>
