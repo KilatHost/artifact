@@ -1,5 +1,5 @@
 class ArtifactEditing
-  EDITABLE_KINDS = %w[document markdown html].freeze
+  EDITABLE_KINDS = %w[document markdown html doc sheet slides].freeze
   HTML_TEXT_ELEMENTS = %w[h1 h2 h3 h4 h5 h6 p figcaption caption span div th td].freeze
 
   def self.editable?(version)

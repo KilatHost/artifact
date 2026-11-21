@@ -8,7 +8,7 @@ class Artifact < ApplicationRecord
     end
   end
   RETENTION = 7.days
-  KINDS = %w[markdown html document file].freeze
+  KINDS = %w[markdown html document file doc sheet slides].freeze
 
   belongs_to :workspace
   belongs_to :design_kit, optional: true

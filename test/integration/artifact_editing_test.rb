@@ -1,6 +1,8 @@
 require "test_helper"
+require_relative "../test_helpers/artifacts"
 
 class ArtifactEditingFlowTest < ActionDispatch::IntegrationTest
+  include ArtifactTestHelpers
   PASSWORD = "long-test-password-123".freeze
 
   setup do
@@ -10,6 +12,50 @@ class ArtifactEditingFlowTest < ActionDispatch::IntegrationTest
     @browser.post session_path, params: { email: @owner.email, password: PASSWORD }
     @first_agent = agent_connection("Creator")
     @second_agent = agent_connection("Reviewer")
+  end
+
+  test "typed artifacts use source editing and retain MCP version and actor contracts" do
+    ArtifactTypes::KINDS.each do |kind|
+      source = typed_source(kind).to_json
+      artifact = create_from_agent(kind, source)
+      @browser.get public_artifact_path(artifact.public_id, edit: "1")
+      @browser.assert_response :success
+      @browser.assert_select "label", "JSON source"
+      @browser.assert_select "textarea[name='artifact[content]']", text: source
+      @browser.assert_select "#draft-text-mode", count: 0
+      @browser.patch artifact_path(artifact), params: { return_to: "viewer", artifact: { title: "Edited", expected_version: 1, content: source } }
+      @browser.assert_response :see_other
+      read = call_agent(@second_agent, "get_artifact", id: artifact.id)
+      assert_equal [ 2, @owner.email, source ], read.values_at("version", "author", "content")
+      revised = call_agent(@second_agent, "update_artifact", id: artifact.id, expected_version: 2, content: source)
+      assert_equal 3, revised["version"]
+      assert_equal "api_token", artifact.reload.current_version.actor_type
+      @browser.patch artifact_path(artifact), params: { artifact: { title: "Invalid", expected_version: 3, content: "{}" } }
+      @browser.assert_response :unprocessable_entity
+      @browser.assert_select "textarea[name='artifact[content]']", text: "{}"
+      assert_equal 3, artifact.versions.count
+    end
+  end
+
+  test "typed draft previews report the same validation messages as saves without changing versions" do
+    ArtifactTypes::KINDS.each do |kind|
+      source = typed_source(kind).to_json
+      artifact = create_from_agent(kind, source)
+      edit = { title: "Preview", expected_version: 1, content: source }
+      @browser.patch artifact_path(artifact), params: { preview: "1", artifact: edit }
+      @browser.assert_response :success
+      [ "{", "{}", "" ].each do |invalid|
+        @browser.patch artifact_path(artifact), params: { preview: "1", artifact: edit.merge(content: invalid) }
+        @browser.assert_response :unprocessable_entity
+        assert_equal "text/plain", @browser.response.media_type
+        message = @browser.response.body
+        @browser.patch artifact_path(artifact), params: { artifact: edit.merge(content: invalid) }
+        @browser.assert_response :unprocessable_entity
+        @browser.assert_select "[role='alert']", text: message
+        assert_equal source, artifact.reload.current_version.content
+        assert_equal 1, artifact.versions.count
+      end
+    end
   end
 
   test "an MCP brief can be edited on the viewer then read and revised by a second agent" do

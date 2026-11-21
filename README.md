@@ -32,17 +32,20 @@
 | Markdown | GitHub-flavoured Markdown, stored as written and rendered on view; raw HTML is dropped |
 | HTML | Full pages or fragments, shown as written. Scripts run in a sandbox with no access to the app; libraries load from cdnjs, jsdelivr, unpkg and the Tailwind CDN |
 | Rich text | Browser editing with Trix; content stored as sanitized HTML |
+| Doc, Sheet, Slides | Structured JSON sources rendered locally in Ruby; edit JSON in the source textarea or create through MCP |
 | File artifacts | Upload and version original files, up to 20 MiB each |
 | Version history | Saves create immutable versions; restore creates a new version |
 | Concurrent edits | Stale version writes fail instead of overwriting newer work |
 | Private and public | Private until you make it public; a public link always shows the latest version |
 | Delete and restore | Deleting ends public access at once; restore within 7 days, then it is purged with its versions and files |
-| Exports | PDF, HTML, source and ZIP; original attachment downloads for files |
+| Exports | PDF, HTML, source and ZIP; Doc → DOCX, Sheet → XLSX, Slides → PPTX; original attachment downloads for files |
 | Shared design kits | Workspace font and color tokens, captured in each saved version |
 | Agent connections | MCP over Streamable HTTP, OAuth and revocable personal tokens |
 | Workspace boundaries | Each account owns one workspace; private operations are workspace-scoped |
 
 The interface follows the Kilat design system, with a light, dark or system theme switch in the top bar. Geist and Geist Mono ship inside the image, so the app itself loads no third-party fonts or scripts (artifacts may; see Security). Published artifacts use their captured design tokens instead of the interface theme.
+
+The JSON schemas in `config/artifact_types/{doc,sheet,slides}.json` are the portable contract shared with Kilat Web. Typed content is validated and stored as canonical JSON; rendering and Office downloads run locally, without AWS or a rendering service. PDF downloads use Chromium. Office files are generated as OOXML with rubyzip, with no additional runtime dependency. Sheets include one worksheet per tab, column formats and real formulas with cached results; row 1 contains column titles and row 2 is the first data row. Formulas support SUM, AVERAGE, IF, ROUND, MIN, MAX, COUNT, VLOOKUP and arithmetic within a tab. Formula errors display as `#ERROR!` in the viewer and Excel error values in XLSX.
 
 ### What it does not do
 

@@ -14,8 +14,9 @@ class ArtifactMcp
   INTEGER = { type: "integer", minimum: 1 }.freeze
   ID = { id: INTEGER }.freeze
   PAGE = { offset: { type: "integer", minimum: 0 } }.freeze
-  KIND = { type: "string", enum: %w[markdown html], description: "markdown = prose (briefs, notes, docs, reports). html = a designed or interactive page (slide decks, dashboards, landing pages, charts)." }.freeze
-  CONTENT = { type: "string", description: "For markdown: GitHub-flavoured Markdown (headings, lists, tables, task lists, links; raw HTML is dropped). " \
+  KIND = { type: "string", enum: %w[markdown html doc sheet slides], description: "markdown = prose; html = interactive page; doc, sheet, slides = structured JSON." }.freeze
+  CONTENT = { type: "string", description: "For doc/sheet/slides: JSON source as a string per get_artifact_schema: {kind,blocks:[{t,...}]} for doc; {kind,tabs:[{name,columns:[{title,format?}],rows:[[value or {f:\"=...\"}]]}]} for sheet (row 1 is titles); {kind,slides:[{layout,...}]} for slides. " \
+    "For markdown: GitHub-flavoured Markdown (headings, lists, tables, task lists, links; raw HTML is dropped). " \
     "For html: a complete HTML document (<!doctype html>...) or a fragment. Inline <script> and <style> run in a sandbox; " \
     "libraries load only from cdnjs.cloudflare.com, cdn.jsdelivr.net, unpkg.com and cdn.tailwindcss.com, fonts from Google Fonts, images from data: or https: URLs. " \
     "No fetch/XHR and no localStorage; forms, alert() and downloads work but cannot send data anywhere. Keep all data inside the page, and give links target=\"_blank\". " \
@@ -26,6 +27,7 @@ class ArtifactMcp
     "Use request_id to retry identical create, update or restore calls safely. Public links may follow latest or be pinned. " \
     "Making something public or advancing its pin is the user's call: ask before publish_artifact.".freeze
   TOOL_SPECS = [
+    [ "get_artifact_schema", "read", "Read the portable JSON schema for doc, sheet or slides", { kind: { type: "string", enum: ArtifactTypes::KINDS } }, %w[kind] ],
     [ "list_artifacts", "read", "List the workspace's artifacts, newest first (100 per page)", PAGE, [] ],
     [ "get_artifact", "read", "Read an artifact with the content of its latest version, or of an older version number", ID.merge(version: INTEGER), %w[id] ],
     [ "create_artifact", "write", "Create a private artifact. Reuse request_id only to retry the identical call", { request_id: { type: "string", minLength: 1, maxLength: 128 }, title: STRING, kind: KIND, content: CONTENT, design_kit_id: INTEGER }, %w[request_id title kind content] ],
@@ -97,6 +99,8 @@ class ArtifactMcp
     input.delete(:request_id)
     author = actor&.name || "MCP"
     case name
+    when "get_artifact_schema"
+      ArtifactTypes.schema(input.fetch(:kind))
     when "list_artifacts"
       workspace.artifacts.active.includes(:current_version).order(id: :desc).offset(input.fetch(:offset, 0)).limit(100).map { |artifact| summary(artifact, base_url) }
     when "get_artifact"

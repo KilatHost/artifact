@@ -28,6 +28,7 @@ class ArtifactExports
   end
 
   def self.source_extension(version)
+    return "json" if ArtifactTypes::KINDS.include?(version.kind)
     { "html" => "html", "markdown" => "md" }.fetch(version.kind, "txt")
   end
 

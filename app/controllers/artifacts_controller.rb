@@ -119,6 +119,10 @@ class ArtifactsController < ApplicationController
     version = selected_version
     name = version.title.parameterize.presence || "artifact"
     case params[:export_format]
+    when "docx", "xlsx", "pptx"
+      format = params[:export_format]
+      raise ActiveRecord::RecordNotFound unless ArtifactTypes::FORMATS.fetch(version.kind, []).include?(format)
+      send_data ArtifactOffice.generate(version, format), filename: "#{name}-v#{version.number}.#{format}", type: ArtifactTypes::CONTENT_TYPES.fetch(format), disposition: "attachment"
     when "pdf"
       pdf = ArtifactExports.pdf(version)
       return render plain: "Another PDF is being made. Try again in a few seconds.", status: :service_unavailable unless pdf
@@ -163,7 +167,10 @@ class ArtifactsController < ApplicationController
     base = edit_base(data[:expected_version])
     tokens = DesignKit.snapshot_tokens(selected_design_kit(data))
     version = ArtifactVersion.new(title: data[:title], kind: base.kind, content: edit_content(data, base), design_tokens: tokens)
+    version.content = ArtifactTypes.validate!(base.kind, version.content).last if ArtifactTypes::KINDS.include?(base.kind)
     render_preview(version)
+  rescue ArtifactTypes::Invalid => error
+    render plain: "Couldn't save. Content #{error.message}.", status: :unprocessable_entity
   end
 
   def selected_design_kit(data)
