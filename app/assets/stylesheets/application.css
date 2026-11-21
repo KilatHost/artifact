@@ -195,6 +195,15 @@ trix-editor pre { padding:var(--phi-13); border-radius:var(--radius-md); backgro
 
 /* Artifact page */
 .workspace { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:var(--phi-21); align-items:start; }
+.edit-workspace { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--phi-21); align-items:start; }
+.edit-workspace .source-editor { min-height:280px; }
+.edit-modes { display:flex; gap:var(--phi-8); }
+.edit-modes [aria-pressed="true"] { border-color:var(--ink); }
+.edit-markdown[class*="heading-"] { font-weight:650; }
+.edit-markdown.heading-1 { font-size:1.5rem; }
+.edit-markdown.heading-2 { font-size:1.25rem; }
+.edit-markdown.list-item { border-left-width:4px; }
+@media (max-width:860px) { .edit-workspace { grid-template-columns:minmax(0,1fr); } }
 .preview-frame { display:block; width:100%; height:560px; border:0; border-top:1px solid var(--line); background:var(--surface); border-radius:0 0 var(--radius-xl) var(--radius-xl); }
 .export-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--phi-8); }
 .history { list-style:none; padding:0; max-height:420px; overflow:auto; }
@@ -278,6 +287,8 @@ trix-toolbar .trix-button-row { justify-content:flex-start; }
 /* Public viewer (/p/<id>): a thin bar above the full-bleed sandboxed snapshot, as on Claude's
    artifact pages and KilatHost/web's viewer. */
 .viewer-body { margin:0; background:var(--canvas); }
+.viewer-editor { overflow:auto; padding:var(--phi-21); }
+.viewer-flash { margin:var(--phi-8) var(--phi-21); }
 .viewer { display:flex; flex-direction:column; height:100dvh; background:var(--canvas); }
 .viewer-bar { display:flex; flex-shrink:0; align-items:center; justify-content:space-between; gap:var(--phi-13); height:40px; padding:0 var(--phi-8); border-bottom:1px solid var(--line); background:var(--canvas); }
 .viewer-bar-title { display:flex; min-width:0; align-items:center; gap:var(--phi-5); font-size:14px; }
@@ -311,7 +322,7 @@ trix-toolbar .trix-button-row { justify-content:flex-start; }
 .switch-knob { position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:999px; background:var(--canvas); transition:transform .15s var(--ease-out); }
 .switch[aria-checked="true"] .switch-knob { transform:translateX(14px); }
 .switch:focus-visible { outline:2px solid var(--ink); outline-offset:2px; }
-@media (max-width:640px) { .viewer-action-label, .viewer-visibility { display:none; } .viewer-action { width:28px; padding:0; justify-content:center; } }
+@media (max-width:640px) { .viewer-action-label, .viewer-visibility { display:none; } .viewer-action { width:28px; padding:0; justify-content:center; } .viewer-edit-action { width:auto; padding:0 var(--phi-8); } }
 @media (prefers-reduced-motion: reduce) { .switch, .switch-knob { transition:none; } }
 @media print { .viewer-bar { display:none; } }
 @media (prefers-reduced-motion: reduce) { .viewer-action:active { transform:none; } }

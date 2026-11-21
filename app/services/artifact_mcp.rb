@@ -18,7 +18,8 @@ class ArtifactMcp
   CONTENT = { type: "string", description: "For markdown: GitHub-flavoured Markdown (headings, lists, tables, task lists, links; raw HTML is dropped). " \
     "For html: a complete HTML document (<!doctype html>...) or a fragment. Inline <script> and <style> run in a sandbox; " \
     "libraries load only from cdnjs.cloudflare.com, cdn.jsdelivr.net, unpkg.com and cdn.tailwindcss.com, fonts from Google Fonts, images from data: or https: URLs. " \
-    "No fetch/XHR and no localStorage; forms, alert() and downloads work but cannot send data anywhere. Keep all data inside the page, and give links target=\"_blank\"." }.freeze
+    "No fetch/XHR and no localStorage; forms, alert() and downloads work but cannot send data anywhere. Keep all data inside the page, and give links target=\"_blank\". " \
+    "Mark static text the owner should edit with a unique data-kilat-editable name on a text-only element, e.g. <h1 data-kilat-editable=\"report-title\">Quarterly report</h1>. Preserve these markers when revising." }.freeze
   INSTRUCTIONS = "Kilat Artifact stores pages you write for the user. Use markdown for prose and html for designed or interactive pages. " \
     "Every result has url: give the user that link. It opens the artifact for its owner, and for anyone once it is public. " \
     "Read the latest content before editing. Update and restore require expected_version; on version_conflict read again, reapply your change and retry. " \
@@ -152,7 +153,7 @@ class ArtifactMcp
     data = artifact.as_json(only: %i[id title kind design_kit_id updated_at])
       .merge("version" => artifact.current_version&.number, "public" => artifact.published_version_id.present?, "public_version" => artifact.public_version_number)
     return data unless base_url
-    data.merge("url" => "#{base_url}/p/#{artifact.public_id}", "edit_url" => "#{base_url}/artifacts/#{artifact.id}")
+    data.merge("url" => "#{base_url}/p/#{artifact.public_id}", "edit_url" => "#{base_url}/artifacts/#{artifact.id}?edit=1")
   end
 
   def self.file_data(version)

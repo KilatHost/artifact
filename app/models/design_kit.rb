@@ -7,6 +7,10 @@ class DesignKit < ApplicationRecord
   before_validation { self.tokens = DEFAULT_TOKENS.merge(tokens || {}) }
   before_update { self.version += 1 if will_save_change_to_tokens? }
 
+  def self.snapshot_tokens(kit)
+    (kit&.tokens || DEFAULT_TOKENS).merge("kit_version" => kit&.version, "kit_name" => kit&.name)
+  end
+
   private
 
   def safe_tokens

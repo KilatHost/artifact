@@ -15,7 +15,7 @@ class ArtifactsController < ApplicationController
   end
 
   def create
-    data = artifact_params.to_h.symbolize_keys.except(:expected_version)
+    data = artifact_params.to_h.symbolize_keys.except(:expected_version, :blocks)
     data[:design_kit_id] = data[:design_kit_id].presence
     @artifact = Current.workspace.artifacts.create_draft!(**data, author: Current.user.email)
     redirect_to @artifact, notice: "Draft created. It stays private until you publish it."
@@ -27,31 +27,47 @@ class ArtifactsController < ApplicationController
   end
 
   def show
-    @version = params[:version_id].present? ? @artifact.versions.find(params[:version_id]) : @artifact.current_version
+    @version = selected_version
     @versions = @artifact.versions.order(number: :desc)
+    @editing = params[:edit] == "1" && @version.id == @artifact.current_version_id && ArtifactEditing.editable?(@version)
   end
 
   def update
+    return draft_preview if params[:preview] == "1"
+
+    viewer = params[:return_to] == "viewer"
     data = artifact_params.to_h.symbolize_keys
+    base = edit_base(data[:expected_version])
+    data[:content] = edit_content(data, base)
     kit_given = data.key?(:design_kit_id)
-    kit_id = data.delete(:design_kit_id).presence
-    kit = Current.workspace.design_kits.find(kit_id) if kit_id
+    kit = selected_design_kit(data) if kit_given
+    data.delete(:design_kit_id)
     @artifact.transaction do
       @artifact.update!(design_kit: kit) if kit_given
       @artifact.revise!(**data, author: Current.user.email)
     end
-    redirect_to @artifact, notice: live_notice("Version saved.")
+    path = viewer ? public_artifact_path(@artifact.public_id) : artifact_path(@artifact)
+    redirect_to path, notice: live_notice("Version saved."), status: :see_other
   rescue Artifact::Conflict, ActiveRecord::RecordInvalid => error
     @artifact.reload
     @version = @artifact.current_version
     @versions = @artifact.versions.order(number: :desc)
-    @draft = ArtifactVersion.new(title: data[:title], kind: data[:kind] || @artifact.kind, content: data[:content])
-    flash.now[:alert] = if error.is_a?(Artifact::Conflict)
-      "#{error.message} Your text is still below. Saving now makes it version #{@version.number + 1}."
+    @editing = true
+    @draft = ArtifactVersion.new(title: data[:title], kind: data[:kind] || base.kind, content: data[:content])
+    @expected_version = data[:expected_version]
+    @conflict = error.is_a?(Artifact::Conflict)
+    flash.now[:alert] = if @conflict
+      "#{error.message} Your draft is still here. Copy your changes, then open the latest version to continue."
     else
       "Couldn't save. #{messages(error)}"
     end
-    render :show, status: error.is_a?(Artifact::Conflict) ? :conflict : :unprocessable_entity
+    status = @conflict ? :conflict : :unprocessable_entity
+    if viewer
+      @owner = true
+      render "public_artifacts/show", layout: "viewer", status: status
+    else
+      render :show, status: status
+    end
   end
 
   def upload
@@ -96,9 +112,7 @@ class ArtifactsController < ApplicationController
   end
 
   def preview
-    version = selected_version
-    response.headers["Content-Security-Policy"] = ArtifactRendering.content_security_policy
-    render html: ArtifactRendering.html(version).html_safe, layout: false
+    render_preview(selected_version)
   end
 
   def export
@@ -138,8 +152,40 @@ class ArtifactsController < ApplicationController
     params[:version_id].present? ? @artifact.versions.find(params[:version_id]) : @artifact.current_version
   end
 
+  def edit_base(number)
+    version = @artifact.versions.find_by(number: Integer(number, exception: false)) || @artifact.current_version
+    raise ActiveRecord::RecordNotFound unless ArtifactEditing.editable?(version)
+    version
+  end
+
+  def draft_preview
+    data = artifact_params.to_h.symbolize_keys
+    base = edit_base(data[:expected_version])
+    tokens = DesignKit.snapshot_tokens(selected_design_kit(data))
+    version = ArtifactVersion.new(title: data[:title], kind: base.kind, content: edit_content(data, base), design_tokens: tokens)
+    render_preview(version)
+  end
+
+  def selected_design_kit(data)
+    return @artifact.design_kit unless data.key?(:design_kit_id)
+
+    kit_id = data[:design_kit_id].presence
+    Current.workspace.design_kits.find(kit_id) if kit_id
+  end
+
+  def edit_content(data, base)
+    blocks = data.delete(:blocks)
+    @html_text_mode = base.kind == "html" && blocks.present?
+    @html_text_mode ? ArtifactEditing.revise_html(base.content, blocks) : data[:content]
+  end
+
+  def render_preview(version)
+    response.headers["Content-Security-Policy"] = ArtifactRendering.content_security_policy
+    render html: ArtifactRendering.html(version).html_safe, layout: false
+  end
+
   def artifact_params
-    params.require(:artifact).permit(:title, :kind, :content, :expected_version, :design_kit_id, :file).tap { |data| data[:content] ||= "" }
+    params.require(:artifact).permit(:title, :kind, :content, :expected_version, :design_kit_id, :file, blocks: {}).tap { |data| data[:content] ||= "" }
   end
 
   def live_notice(message)

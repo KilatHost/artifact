@@ -162,6 +162,23 @@ Tool errors have `isError:true` and JSON text `{error,message,...}`. Codes: `ver
 
 MCP exposes file metadata, not binary upload/download tools. Browser uploads and authorized HTTP downloads handle files.
 
+#### Launch template: editable HTML report
+
+Give the user the artifact's `url` so they can use **Edit → Page text** in the viewer. Mark only static, text-only elements, using a unique name that starts with a letter and contains at most 64 letters, digits, hyphens or underscores. Preserve markers when an agent revises the report.
+
+```html
+<main>
+  <h1 data-kilat-editable="report-title">Quarterly report</h1>
+  <p data-kilat-editable="report-summary">Summarize the key finding here.</p>
+  <figure>
+    <div id="chart"></div>
+    <figcaption data-kilat-editable="chart-caption">Comparison with the prior quarter.</figcaption>
+  </figure>
+</main>
+```
+
+Page text editing changes only the marked elements' text, not their layout or JavaScript. Use **Source** and **Preview draft** for arbitrary HTML. Markdown has a **Formatted** mode for simple text and a **Source** mode for the full document.
+
 ## Design kits
 
 Agents should list available kits, choose one and supply its ID when creating an artifact. A kit uses this token shape:
