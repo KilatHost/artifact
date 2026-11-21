@@ -16,7 +16,7 @@ class ArtifactSheetFormulasTest < ActiveSupport::TestCase
     end
   end
 
-  test "date formatted ISO references and ranges use Excel serials without changing rendered cells" do
+  test "date formatted ISO values use Excel serials only for numeric operations" do
     columns = [ { "title" => "End", "format" => "date" }, { "title" => "Start", "format" => "date" } ]
     rows = [ [ "2026-11-23", "2026-11-16" ] ]
     assert_equal 7, evaluate("=A2-B2", rows: rows, columns: columns)
@@ -25,6 +25,13 @@ class ArtifactSheetFormulasTest < ActiveSupport::TestCase
     assert_equal "#ERROR!", evaluate("=A2-B2", rows: rows)
     assert_equal "#ERROR!", evaluate("=A2+0", rows: [ [ "not a date", nil ] ], columns: columns)
     assert_equal "2026-11-23", ArtifactSheetFormulas.new({ "columns" => columns, "rows" => rows }).cell(1, 0)
+    assert_equal "2026-11-16", evaluate("=B2", rows: rows, columns: columns)
+    assert_equal true, evaluate('=B2="2026-11-16"', rows: rows, columns: columns)
+    formula_rows = [ [ { "f" => '=IF(TRUE,"2026-11-23","")' }, { "f" => '=IF(TRUE,"2026-11-16","")' } ] ]
+    assert_equal 7, evaluate("=A2-B2", rows: formula_rows, columns: columns)
+    assert_equal "2026-11-16", evaluate("=B2", rows: formula_rows, columns: columns)
+    assert_equal true, evaluate('=B2="2026-11-16"', rows: formula_rows, columns: columns)
+    assert_equal false, evaluate('=B2="46342"', rows: formula_rows, columns: columns)
   end
 
   test "aggregate ranges past stored rows ignore missing blank cells" do

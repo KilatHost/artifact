@@ -2,6 +2,11 @@ require "strscan"
 
 class ArtifactSheetFormulas
   class Invalid < StandardError; end
+  class DateValue < String
+    def serial
+      (Date.iso8601(self) - Date.new(1899, 12, 30)).to_i
+    end
+  end
   ERROR = "#ERROR!".freeze
   PRECEDENCE = { "=" => 1, "<>" => 1, "<" => 1, ">" => 1, "<=" => 1, ">=" => 1, "+" => 2, "-" => 2, "*" => 3, "/" => 3 }.freeze
 
@@ -109,7 +114,8 @@ class ArtifactSheetFormulas
     raise Invalid if value == ERROR
     if row.positive? && @tab["columns"][column]["format"] == "date" && value.is_a?(String)
       begin
-        return (Date.iso8601(value) - Date.new(1899, 12, 30)).to_i
+        Date.iso8601(value)
+        return DateValue.new(value)
       rescue Date::Error
         return value
       end
@@ -136,6 +142,7 @@ class ArtifactSheetFormulas
 
   def number(value)
     return 0.0 if value.nil?
+    return value.serial.to_f if value.is_a?(DateValue)
     raise Invalid unless value.is_a?(Numeric) && value.finite?
     value.to_f
   end
@@ -169,7 +176,7 @@ class ArtifactSheetFormulas
       return chosen ? evaluate(chosen) : false
     end
     args = nodes.map { |node| evaluate(node) }
-    values = args.flatten.select { |v| v.is_a?(Numeric) }
+    values = args.flatten.map { |value| value.is_a?(DateValue) ? value.serial : value }.select { |v| v.is_a?(Numeric) }
     case name
     when "SUM" then values.sum
     when "AVERAGE" then raise(Invalid) if values.empty?; values.sum.to_f / values.length
