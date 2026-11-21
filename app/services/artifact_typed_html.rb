@@ -59,18 +59,8 @@ class ArtifactTypedHtml
   end
 
   def format_value(value, format)
-    return escape(value) if value.nil? || value == ArtifactSheetFormulas::ERROR
-    number = ActiveSupport::NumberHelper
-    rendered = case format
-    when "int" then number.number_to_rounded(value, precision: 0, delimiter: ".", separator: ",")
-    when "idr" then "Rp #{number.number_to_rounded(value, precision: 0, delimiter: '.', separator: ',')}"
-    when "pct" then value.is_a?(Numeric) ? "#{number.number_to_rounded(value * 100, precision: 2, strip_insignificant_zeros: true, separator: ',')}%" : value
-    when "date" then (value.is_a?(Numeric) ? Date.new(1899, 12, 30) + value.to_i : Date.iso8601(value.to_s)).strftime("%d/%m/%Y")
-    else value
-    end
-    escape(rendered)
-  rescue Date::Error, ArgumentError
-    escape(value)
+    return escape(value) if value == ArtifactSheetFormulas::ERROR
+    escape(ArtifactValueFormatting.format(value, format))
   end
 
   def table(head, rows, formats = [])

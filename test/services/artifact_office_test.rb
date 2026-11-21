@@ -113,4 +113,16 @@ class ArtifactOfficeTest < ActiveSupport::TestCase
       assert_equal "B2+7", sheet.at_xpath("//c[@r='C2']/f").text
     end
   end
+
+  test "DOCX and HTML share date formatting for numeric serials ISO text invalid text and blanks" do
+    source = { "kind" => "doc", "blocks" => [ { "t" => "table", "head" => %w[Serial ISO Invalid Blank],
+      "format" => %w[date date date date], "rows" => [ [ 46342, "2026-11-16", "not a date", nil ] ] } ] }
+    version = ArtifactVersion.new(kind: "doc", title: "Dates", content: source.to_json, design_tokens: DesignKit::DEFAULT_TOKENS)
+    displayed = Nokogiri::HTML5(ArtifactRendering.html(version)).css("tbody td").map(&:text)
+    assert_equal [ "16/11/2026", "16/11/2026", "not a date", "" ], displayed
+    generate(source, "docx") do |zip|
+      word_cells = xml_part(zip, "word/document.xml").xpath("//tr[2]/tc").map(&:text)
+      assert_equal displayed, word_cells
+    end
+  end
 end
