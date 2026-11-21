@@ -130,17 +130,43 @@ class ArtifactEditingFlowTest < ActionDispatch::IntegrationTest
     assert_equal 1, artifact.versions.count
   end
 
-  test "the signed-in owner sees the latest draft while public viewers see the shared snapshot" do
+  test "saving in the viewer leaves the public link pinned until the owner updates it" do
+    previous_mode = ENV["KILAT_PUBLIC_LINKS"]
+    ENV["KILAT_PUBLIC_LINKS"] = "pinned"
     artifact = create_from_agent("markdown", "# Shared revision")
-    shared = artifact.current_version
-    call_agent(@second_agent, "update_artifact", id: artifact.id, expected_version: 1, content: "# Working draft")
-    artifact.reload.update!(published_version: shared)
+    viewer_path = public_artifact_path(artifact.public_id)
+    frame_path = public_artifact_frame_path(artifact.public_id)
 
-    @browser.get public_artifact_path(artifact.public_id)
+    @browser.post publish_artifact_path(artifact), params: { return_to: "viewer" }
+    @browser.assert_redirected_to viewer_path
+    assert_equal 1, artifact.reload.public_version_number
+
+    @browser.get public_artifact_path(artifact.public_id, edit: "1")
+    @browser.assert_select ".caption", "Saving leaves the public link pinned until you update it."
+    @browser.patch artifact_path(artifact), params: { return_to: "viewer", artifact: { title: "Working draft", content: "# Working draft", expected_version: 1 } }
+    @browser.assert_redirected_to viewer_path
+    @browser.follow_redirect!
+    @browser.assert_select "[role=status]", "Version saved."
+    @browser.assert_select ".viewer-visibility", "Public link: version 1"
+    assert_equal 1, artifact.reload.public_version_number
+    assert_equal [ 2, "user", @owner.id ], artifact.current_version.attributes.values_at("number", "actor_type", "actor_id")
+
     @browser.assert_select "iframe[src=?]", preview_artifact_path(artifact, version_id: artifact.current_version_id)
-    get public_artifact_frame_path(artifact.public_id)
+    get viewer_path
+    assert_select ".viewer-menu strong", "Agent draft"
+    get frame_path
     assert_includes response.body, "<h1>Shared revision</h1>"
     refute_includes response.body, "Working draft"
+
+    @browser.get artifact_path(artifact)
+    @browser.assert_select "button", "Update public link"
+    @browser.post update_public_link_artifact_path(artifact)
+    @browser.assert_redirected_to artifact_path(artifact)
+    assert_equal 2, artifact.reload.public_version_number
+    get frame_path
+    assert_includes response.body, "<h1>Working draft</h1>"
+  ensure
+    ENV["KILAT_PUBLIC_LINKS"] = previous_mode
   end
 
   test "rich text uses Trix and uploaded files keep their separate replacement action" do
