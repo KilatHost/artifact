@@ -146,11 +146,11 @@ umask 077
 docker compose stop web jobs
 docker compose exec -T db pg_dump -U kilat -d kilat_artifact_production -Fc > "backups/${backup_id}.dump"
 docker compose run --rm --no-deps -T --entrypoint tar web -C /rails/storage -czf - . > "backups/${backup_id}-storage.tar.gz"
-grep '^ARTIFACT_VERSION=' .env > "backups/${backup_id}.version"
+{ grep '^ARTIFACT_VERSION=' .env || echo 'ARTIFACT_VERSION= (unset: source install)'; git describe --tags --always; } > "backups/${backup_id}.version"
 docker compose start web jobs
 ```
 
-Run each command only after the preceding one succeeds. If a backup command fails, do not label that checkpoint complete; restart the services after resolving the failure. The `.version` file records the release the checkpoint belongs to. Preserve the deployment configuration and secrets (`.env`, including `SECRET_KEY_BASE`) separately. Encrypt backups, store an off-host copy and verify retention against available disk.
+Run each command only after the preceding one succeeds. If a backup command fails, do not label that checkpoint complete; restart the services after resolving the failure. The `.version` file records the release image and the checked-out revision the checkpoint belongs to. Preserve the deployment configuration and secrets (`.env`, including `SECRET_KEY_BASE`) separately. Encrypt backups, store an off-host copy and verify retention against available disk.
 
 S3 deployments need a matching object checkpoint or a tested version-recovery strategy instead of the local storage archive. A database dump alone is not an artifact backup.
 
@@ -158,7 +158,7 @@ S3 deployments need a matching object checkpoint or a tested version-recovery st
 
 Restore first into an isolated environment, never over the only copy of customer data. The commands below restore a checkpoint into a second Compose project with its own empty volumes, on port 3001 of the same host. To restore on another host, copy the checkout, `.env` and backup files there first.
 
-1. Select matching database and storage backups. Check out the release named in the checkpoint's `.version` file and use the same `.env` (at least the same `SECRET_KEY_BASE` and `ARTIFACT_VERSION`).
+1. Select matching database and storage backups. Check out the revision named in the checkpoint's `.version` file and use the same `.env` (at least the same `SECRET_KEY_BASE` and `ARTIFACT_VERSION`).
 2. Choose a project name that has never held data, and keep public access disabled. Start PostgreSQL only, then restore the dump into its empty database and the storage archive into `/rails/storage` (the archive extracts as the image's Rails user, UID/GID `1000:1000`):
 
    ```sh
