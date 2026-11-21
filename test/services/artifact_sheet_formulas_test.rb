@@ -39,4 +39,13 @@ class ArtifactSheetFormulasTest < ActiveSupport::TestCase
     assert_equal "#ERROR!", evaluate("=SUM(A5:A2)", rows: rows)
     assert_equal "#ERROR!", evaluate("=SUM(A2:A1048577)", rows: rows)
   end
+
+  test "exact VLOOKUP ignores text case but preserves numeric versus text types" do
+    rows = [ [ "Apple", 10 ], [ "APPLE", 20 ], [ 123, 30 ] ]
+    assert_equal 10, evaluate('=VLOOKUP("apple",A2:B4,2,FALSE)', rows: rows)
+    assert_equal 10, evaluate('=VLOOKUP("aPpLe",A2:B4,2,0)', rows: rows)
+    assert_equal 30, evaluate("=VLOOKUP(123,A2:B4,2,FALSE)", rows: rows)
+    assert_equal "#ERROR!", evaluate('=VLOOKUP("123",A2:B4,2,FALSE)', rows: rows)
+    assert_equal "#ERROR!", evaluate('=VLOOKUP("pear",A2:B4,2,FALSE)', rows: rows)
+  end
 end

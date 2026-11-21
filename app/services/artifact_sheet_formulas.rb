@@ -184,7 +184,9 @@ class ArtifactSheetFormulas
       column = number(args[2]).to_i
       raise Invalid unless column >= 1 && args[1].all? { |row| row.is_a?(Array) && column <= row.length }
       row = if args[3] == false || args[3] == 0
-        args[1].find { |item| item[0] == args[0] }
+        args[1].find do |item|
+          item[0].is_a?(String) && args[0].is_a?(String) ? item[0].casecmp?(args[0]) : item[0] == args[0]
+        end
       else
         args[1].select { |item| item[0] <= args[0] }.last
       end
