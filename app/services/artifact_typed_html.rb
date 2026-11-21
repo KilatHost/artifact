@@ -65,7 +65,7 @@ class ArtifactTypedHtml
     when "int" then number.number_to_rounded(value, precision: 0, delimiter: ".", separator: ",")
     when "idr" then "Rp #{number.number_to_rounded(value, precision: 0, delimiter: '.', separator: ',')}"
     when "pct" then value.is_a?(Numeric) ? "#{number.number_to_rounded(value * 100, precision: 2, strip_insignificant_zeros: true, separator: ',')}%" : value
-    when "date" then Date.iso8601(value.to_s).strftime("%d/%m/%Y")
+    when "date" then (value.is_a?(Numeric) ? Date.new(1899, 12, 30) + value.to_i : Date.iso8601(value.to_s)).strftime("%d/%m/%Y")
     else value
     end
     escape(rendered)

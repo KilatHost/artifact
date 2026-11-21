@@ -32,7 +32,7 @@ class ArtifactTypedHtmlTest < ActiveSupport::TestCase
   test "copied date formulas stay formatted as dates while date subtraction gives days" do
     source = { "kind" => "sheet", "tabs" => [ { "name" => "Dates", "columns" => [ { "title" => "Start", "format" => "date" },
       { "title" => "Copy", "format" => "date" }, { "title" => "End", "format" => "date" }, { "title" => "Days" } ],
-      "rows" => [ [ "2026-11-16", { "f" => "=A2" }, "2026-11-23", { "f" => "=C2-B2" } ] ] } ] }
+      "rows" => [ [ "2026-11-16", { "f" => "=A2" }, { "f" => "=B2+7" }, { "f" => "=C2-B2" } ] ] } ] }
     cells = Nokogiri::HTML5(ArtifactRendering.html(version(source))).css("tbody td").map(&:text)
     assert_equal [ "16/11/2026", "16/11/2026", "23/11/2026", "7.0" ], cells
   end

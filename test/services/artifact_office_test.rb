@@ -96,4 +96,21 @@ class ArtifactOfficeTest < ActiveSupport::TestCase
       assert_equal "e", sheet.at_xpath("//c[@r='D2']")["t"]
     end
   end
+
+  test "date source cells and copied or calculated dates cache numeric Excel serials" do
+    source = { "kind" => "sheet", "tabs" => [ { "name" => "Dates", "columns" => [ { "title" => "Stored", "format" => "date" },
+      { "title" => "Copy", "format" => "date" }, { "title" => "Later", "format" => "date" } ],
+      "rows" => [ [ "2026-01-01", { "f" => "=A2" }, { "f" => "=B2+7" } ] ] } ] }
+    generate(source, "xlsx") do |zip|
+      sheet = xml_part(zip, "xl/worksheets/sheet1.xml")
+      { "A2" => "46023", "B2" => "46023", "C2" => "46030.0" }.each do |address, serial|
+        cell = sheet.at_xpath("//c[@r='#{address}']")
+        assert_equal "n", cell["t"]
+        assert_equal "4", cell["s"]
+        assert_equal serial, cell.at_xpath("v").text
+      end
+      assert_equal "A2", sheet.at_xpath("//c[@r='B2']/f").text
+      assert_equal "B2+7", sheet.at_xpath("//c[@r='C2']/f").text
+    end
+  end
 end
