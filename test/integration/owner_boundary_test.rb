@@ -142,7 +142,7 @@ class OwnerBoundaryTest < ActionDispatch::IntegrationTest
 
   test "the viewer shows a private artifact and its switch only to the owner" do
     get public_artifact_path(@artifact.public_id)
-    assert_response :not_found
+    assert_redirected_to new_session_path
     get public_artifact_frame_path(@artifact.public_id)
     assert_response :not_found
     sign_in @intruder

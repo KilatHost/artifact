@@ -77,11 +77,33 @@ class McpV1ContractTest < ActionDispatch::IntegrationTest
     assert_includes public_client.response.headers["Cache-Control"], "no-store"
     call_tool(@a_secret, "unpublish_artifact", id: artifact.id)
     assert_nil artifact.reload.public_version_number
-    [ public_artifact_path(artifact.public_id), public_artifact_frame_path(artifact.public_id),
+    public_client.get public_artifact_path(artifact.public_id)
+    assert_equal 302, public_client.response.status
+    assert_equal new_session_url, public_client.response.location
+    refute_includes public_client.response.body, "unpublished v4"
+    public_client.post session_path, params: { email: @owner.email, password: "long-test-password-123" }
+    assert_equal public_artifact_url(artifact.public_id), public_client.response.location
+    public_client = open_session
+    [ public_artifact_frame_path(artifact.public_id),
       public_artifact_file_path(artifact.public_id), public_artifact_download_path(artifact.public_id, export_format: "html") ].each do |path|
       public_client.get path
       assert_equal 404, public_client.response.status
     end
+  end
+
+  test "retry receipts cannot be reused by another authenticated connection" do
+    create = { request_id: "shared-create", title: "Shared", kind: "markdown", content: "v1" }
+    created = call_tool(@a_secret, "create_artifact", **create)
+    call_tool(@b_secret, "create_artifact", **create, error: "idempotency_mismatch")
+    revise = { id: created["id"], content: "v2", expected_version: 1, request_id: "shared-revise" }
+    revised = call_tool(@a_secret, "update_artifact", **revise)
+    call_tool(@b_secret, "update_artifact", **revise, error: "idempotency_mismatch")
+    assert_equal revised, call_tool(@a_secret, "update_artifact", **revise)
+    restore = { id: created["id"], version: 1, expected_version: 2, request_id: "shared-restore" }
+    restored = call_tool(@a_secret, "restore_artifact", **restore)
+    call_tool(@b_secret, "restore_artifact", **restore, error: "idempotency_mismatch")
+    assert_equal restored, call_tool(@a_secret, "restore_artifact", **restore)
+    assert_equal 3, Artifact.find(created["id"]).versions.count
   end
 
   test "required inputs, scopes and validation have JSON errors" do

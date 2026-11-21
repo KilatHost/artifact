@@ -31,6 +31,22 @@ class McpV1ModelContractTest < ActiveSupport::TestCase
     assert_raises(ArgumentError) { perform("restore_artifact", id: @artifact.id, version: 1) }
   end
 
+  test "retry fingerprints distinguish actor types and unauthenticated identity" do
+    input = { request_id: "identity", title: "Identity", kind: "markdown", content: "same" }
+    result = perform("create_artifact", input)
+    application = Doorkeeper::Application.new(id: @token.id, name: "OAuth Agent")
+    [ application, nil ].each do |actor|
+      assert_raises(ArtifactMcp::IdempotencyMismatch) do
+        ArtifactMcp.perform("create_artifact", @workspace, input, actor: actor)
+      end
+    end
+    @token.update!(name: "Renamed Agent")
+    assert_equal result, perform("create_artifact", input), "display names are not connection identity"
+    anonymous = input.merge(request_id: "nil-identity")
+    first = ArtifactMcp.perform("create_artifact", @workspace, anonymous)
+    assert_equal first, ArtifactMcp.perform("create_artifact", @workspace, anonymous)
+  end
+
   test "old versions have null connection, new versions resist spoofing and history exposes connections" do
     assert_nil perform("get_artifact", id: @artifact.id)["connection"]
     perform("update_artifact", id: @artifact.id, content: "", expected_version: 1, author: "Spoofed", actor_id: 123)

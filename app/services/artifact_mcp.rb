@@ -78,11 +78,12 @@ class ArtifactMcp
       request_id = input[:request_id]
       if name == "create_artifact" || input.key?(:request_id)
         raise ArgumentError, "request_id must contain 1–128 characters" unless request_id.is_a?(String) && request_id.length.between?(1, 128)
-        fingerprint = Digest::SHA256.hexdigest(JSON.generate([ name, input.except(:request_id).sort.to_h ]))
+        identity = [ actor.class.name, actor.id ] if actor
+        fingerprint = Digest::SHA256.hexdigest(JSON.generate([ name, identity, input.except(:request_id).sort.to_h ]))
         return workspace.with_lock do
           previous = McpRequest.find_by(workspace: workspace, request_id: request_id)
           if previous
-            raise IdempotencyMismatch, "request_id already used with different input or tool" unless previous.fingerprint == fingerprint
+            raise IdempotencyMismatch, "request_id already used with different input, tool or connection" unless previous.fingerprint == fingerprint
             previous.result
           else
             result = perform(name, workspace, input, base_url: base_url, actor: actor, receipt: false)

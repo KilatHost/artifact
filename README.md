@@ -152,7 +152,7 @@ OAuth defaults and the personal-token form select `read write`; `publish` is alw
 
 Get/history expose `author` as a display name and `connection: {type,id,name}` or null for legacy rows. Types are `user`, `api_token`, `oauth_application`; MCP names come from the authenticated token/application, browser names from the user email. Names are captured at write time; revoked connections remain identifiable. Caller-supplied authors are not accepted.
 
-Create requires `request_id` (1–128 characters); update/restore accept it optionally. Reuse it only for identical retries: the workspace-wide receipt includes tool name and inputs. A retry returns the original result without a new version, even after later edits. Different inputs or tools yield `idempotency_mismatch`. Receipts have no expiry; use unique IDs across agents. Without a request ID, revise retries are not idempotent.
+Create requires `request_id` (1–128 characters); update/restore accept it optionally. Reuse it only for identical retries: the workspace-wide receipt includes tool name, authenticated connection type/ID (or null), and inputs. A retry returns the original result without a new version, even after later edits. Different inputs, tools or connections yield `idempotency_mismatch`. Receipts have no expiry; use unique IDs across agents. Without a request ID, revise retries are not idempotent.
 
 Update and restore require `expected_version`, checked under the artifact lock. **Stale-write recovery:** (1) call `get_artifact`; (2) reapply your intended change to its latest content, preserving other edits; (3) retry with `expected_version` set to that version and a new request ID if inputs changed. Do not blindly retry stale content.
 
