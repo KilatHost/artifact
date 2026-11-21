@@ -43,7 +43,8 @@ module ArtifactOffice
       part("[Content_Types].xml", %(<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">#{defaults.map { |extension, type| %(<Default Extension="#{extension}" ContentType="#{type}"/>) }.join}#{@types.map { |path, type| %(<Override PartName="/#{path}" ContentType="#{type}"/>) }.join}</Types>))
       Zip::OutputStream.write_buffer do |zip|
         @parts.each do |path, bytes|
-          zip.put_next_entry(path)
+          # An unknown size makes RubyZip emit ZIP64 headers that older Office readers reject.
+          zip.put_next_entry(Zip::Entry.new("", path, size: bytes.bytesize))
           zip.write(bytes)
         end
       end.string

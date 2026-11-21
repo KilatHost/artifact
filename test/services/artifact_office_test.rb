@@ -9,6 +9,7 @@ class ArtifactOfficeTest < ActiveSupport::TestCase
     bytes = ArtifactOffice.generate(version, format)
     Zip::File.open_buffer(bytes) do |zip|
       zip.each do |entry|
+        refute_predicate entry, :zip64?, "#{format}: #{entry.name} should use standard ZIP headers"
         next unless entry.name.end_with?(".xml", ".rels")
         assert Nokogiri::XML(entry.get_input_stream.read) { |config| config.strict }, entry.name
       end
