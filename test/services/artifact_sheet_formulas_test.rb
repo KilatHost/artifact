@@ -15,4 +15,15 @@ class ArtifactSheetFormulasTest < ActiveSupport::TestCase
       assert_equal expected, evaluate(formula), formula
     end
   end
+
+  test "date formatted ISO references and ranges use Excel serials without changing rendered cells" do
+    columns = [ { "title" => "End", "format" => "date" }, { "title" => "Start", "format" => "date" } ]
+    rows = [ [ "2026-11-23", "2026-11-16" ] ]
+    assert_equal 7, evaluate("=A2-B2", rows: rows, columns: columns)
+    assert_equal 46342, evaluate("=B2+0", rows: rows, columns: columns)
+    assert_equal 92691, evaluate("=SUM(A2:B2)", rows: rows, columns: columns)
+    assert_equal "#ERROR!", evaluate("=A2-B2", rows: rows)
+    assert_equal "#ERROR!", evaluate("=A2+0", rows: [ [ "not a date", nil ] ], columns: columns)
+    assert_equal "2026-11-23", ArtifactSheetFormulas.new({ "columns" => columns, "rows" => rows }).cell(1, 0)
+  end
 end

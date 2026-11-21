@@ -101,8 +101,19 @@ class ArtifactSheetFormulas
   end
 
   def reference(ref)
-    value = cell(*coordinates(ref))
+    formula_cell(*coordinates(ref))
+  end
+
+  def formula_cell(row, column)
+    value = cell(row, column)
     raise Invalid if value == ERROR
+    if row.positive? && @tab["columns"][column]["format"] == "date" && value.is_a?(String)
+      begin
+        return (Date.iso8601(value) - Date.new(1899, 12, 30)).to_i
+      rescue Date::Error
+        return value
+      end
+    end
     value
   end
 
@@ -115,7 +126,7 @@ class ArtifactSheetFormulas
       r1, c1 = coordinates(a)
       r2, c2 = coordinates(b)
       raise Invalid unless r2 >= r1 && c2 >= c1 && r2 <= @tab["rows"].length && c2 < @tab["columns"].length
-      (r1..r2).map { |r| (c1..c2).map { |col| value = cell(r, col); raise Invalid if value == ERROR; value } }
+      (r1..r2).map { |r| (c1..c2).map { |col| formula_cell(r, col) } }
     when :unary then a == "-" ? -number(evaluate(b)) : number(evaluate(b))
     when :binary then binary(a, evaluate(b), evaluate(c))
     when :call then function(a, b)
