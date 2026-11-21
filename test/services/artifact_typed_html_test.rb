@@ -82,4 +82,10 @@ class ArtifactTypedHtmlTest < ActiveSupport::TestCase
     assert_includes html, "overflow-wrap:anywhere"
     assert ArtifactExports.pdf(version({ "kind" => "slides", "slides" => [ slide ] })).start_with?("%PDF")
   end
+
+  test "a short A4 doc PDF has no blank trailing page" do
+    source = { "kind" => "doc", "blocks" => [ { "t" => "heading", "text" => "Short document" }, { "t" => "paragraph", "text" => "One page of content." } ] }
+    pdf = ArtifactExports.pdf(version(source))
+    assert_equal 1, pdf.scan(%r{/Type\s*/Page\b}).length
+  end
 end

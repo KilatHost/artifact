@@ -7,7 +7,7 @@ class ArtifactTypedHtml
     common = ".typed p{white-space:pre-wrap}.typed h1,.typed h2,.typed h3{color:var(--accent)}.pagebreak{break-before:page}.signature{margin-top:3em}.logo{max-height:100px}.columns{display:grid;grid-template-columns:1fr 1fr;gap:2em}"
     case kind
     when "doc"
-      common + "main.typed{max-width:180mm;min-height:267mm}@page{size:A4}"
+      common + "main.typed{max-width:180mm;min-height:267mm}@page{size:A4}@media print{main.typed{min-height:0}}"
     when "slides"
       common + "main.typed{max-width:none;padding:0}.slide{box-sizing:border-box;aspect-ratio:16/9;padding:5%;margin:20px auto;max-width:1200px;border:1px solid #ddd;overflow:hidden}.slide-table{padding:30px}.slide-table h1{font-size:24px;line-height:1.2;margin:0 0 16px}.slide-table table{table-layout:fixed;font-size:var(--table-font-size);line-height:1.15}.slide-table td,.slide-table th{padding:3px;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap}.big-number{font-size:5em}@page{size:320mm 180mm;margin:0}@media print{.slide{width:320mm;height:180mm;max-width:none;margin:0;border:0;break-after:page}.slide:last-child{break-after:auto}}"
     else common + ".tab{margin-bottom:3em}thead{display:table-header-group}"
