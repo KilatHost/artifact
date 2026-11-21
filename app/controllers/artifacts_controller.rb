@@ -40,8 +40,8 @@ class ArtifactsController < ApplicationController
     base = edit_base(data[:expected_version])
     data[:content] = edit_content(data, base)
     kit_given = data.key?(:design_kit_id)
-    kit_id = data.delete(:design_kit_id).presence
-    kit = Current.workspace.design_kits.find(kit_id) if kit_id
+    kit = selected_design_kit(data) if kit_given
+    data.delete(:design_kit_id)
     @artifact.transaction do
       @artifact.update!(design_kit: kit) if kit_given
       @artifact.revise!(**data, author: Current.user.email)
@@ -161,8 +161,16 @@ class ArtifactsController < ApplicationController
   def draft_preview
     data = artifact_params.to_h.symbolize_keys
     base = edit_base(data[:expected_version])
-    version = ArtifactVersion.new(title: data[:title], kind: base.kind, content: edit_content(data, base), design_tokens: base.design_tokens)
+    tokens = DesignKit.snapshot_tokens(selected_design_kit(data))
+    version = ArtifactVersion.new(title: data[:title], kind: base.kind, content: edit_content(data, base), design_tokens: tokens)
     render_preview(version)
+  end
+
+  def selected_design_kit(data)
+    return @artifact.design_kit unless data.key?(:design_kit_id)
+
+    kit_id = data[:design_kit_id].presence
+    Current.workspace.design_kits.find(kit_id) if kit_id
   end
 
   def edit_content(data, base)

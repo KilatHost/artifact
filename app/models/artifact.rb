@@ -115,7 +115,7 @@ class Artifact < ApplicationRecord
   end
 
   def append_version!(title:, kind:, content:, author:, file:, design_tokens: nil, actor: nil)
-    tokens = design_tokens || (design_kit&.tokens || DesignKit::DEFAULT_TOKENS).merge("kit_version" => design_kit&.version, "kit_name" => design_kit&.name)
+    tokens = design_tokens || DesignKit.snapshot_tokens(design_kit)
     version = versions.build(number: (current_version&.number || 0) + 1, title: title, kind: kind, content: content.to_s, author: author, design_tokens: tokens)
     version.assign_actor(actor || Current.user)
     version.file.attach(file || current_version.file.blob) if file || (kind == "file" && current_version&.file&.attached?)

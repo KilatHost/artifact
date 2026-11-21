@@ -68,6 +68,28 @@ class ArtifactEditingFlowTest < ActionDispatch::IntegrationTest
     assert_equal source, artifact.versions.find_by!(number: 1).content
   end
 
+  test "preview uses the selected design kit without changing the saved artifact" do
+    artifact = create_from_agent("markdown", "# Brief")
+    kit = @workspace.design_kits.create!(name: "Blue", tokens: { "accent" => "#123abc" })
+    edit = { title: artifact.title, expected_version: 1, content: "# Edited brief", design_kit_id: kit.id }
+
+    @browser.patch artifact_path(artifact), params: { preview: "1", artifact: edit }
+    @browser.assert_response :success
+    assert_includes @browser.response.body, "a{color:#123abc}"
+    assert_nil artifact.reload.design_kit_id
+    assert_equal 1, artifact.versions.count
+
+    @browser.patch artifact_path(artifact), params: { artifact: edit }
+    @browser.assert_redirected_to artifact_path(artifact)
+    assert_equal "#123abc", artifact.reload.current_version.design_tokens.fetch("accent")
+
+    @browser.patch artifact_path(artifact), params: { preview: "1", artifact: edit.merge(expected_version: 2, design_kit_id: "") }
+    @browser.assert_response :success
+    assert_includes @browser.response.body, "a{color:#171717}"
+    assert_equal kit.id, artifact.reload.design_kit_id
+    assert_equal 2, artifact.versions.count
+  end
+
   test "a competing agent save keeps the owner's marked text and refuses the stale save" do
     artifact = create_from_agent("html", '<h1 data-kilat-editable="title">Original</h1>')
     @browser.get public_artifact_path(artifact.public_id, edit: "1")
