@@ -64,13 +64,18 @@ class ArtifactsController < ApplicationController
   def publish
     @artifact.publish!
     return redirect_to public_artifact_path(@artifact.public_id) if params[:return_to] == "viewer"
-    redirect_to @artifact, notice: "Public. Anyone with the link sees the latest version."
+    redirect_to @artifact, notice: "Public. Anyone with the link sees #{@artifact.public_version_number ? 'the pinned version' : 'the latest version'}."
   end
 
   def unpublish
     @artifact.unpublish!
     return redirect_to public_artifact_path(@artifact.public_id) if params[:return_to] == "viewer"
     redirect_to @artifact, notice: "Public link turned off. Copies people already downloaded stay with them."
+  end
+
+  def update_public_link
+    @artifact.update_public_link!
+    redirect_to @artifact, notice: "Public link updated to the latest version."
   end
 
   def restore
@@ -138,7 +143,7 @@ class ArtifactsController < ApplicationController
   end
 
   def live_notice(message)
-    @artifact.published_version_id ? "#{message} It's live on the public link." : message
+    @artifact.published_version_id && !@artifact.public_version_number ? "#{message} It's live on the public link." : message
   end
 
   def messages(error)

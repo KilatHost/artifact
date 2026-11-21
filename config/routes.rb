@@ -7,6 +7,7 @@ Rails.application.routes.draw do
       get :preview
       get :export
       post :publish
+      post :update_public_link
       post :unpublish
       post :restore
       post :upload

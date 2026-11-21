@@ -11,6 +11,19 @@ class ArtifactVersion < ApplicationRecord
   before_update { raise ActiveRecord::ReadOnlyRecord, "Artifact versions are immutable" }
   before_destroy { raise ActiveRecord::ReadOnlyRecord, "Artifact versions are immutable" }
 
+  def assign_actor(actor)
+    self.actor_type = case actor
+    when User then "user"
+    when ApiToken then "api_token"
+    when Doorkeeper::Application then "oauth_application"
+    end
+    self.actor_id = actor.id if actor_type
+  end
+
+  def connection
+    { type: actor_type, id: actor_id, name: author } if actor_type && actor_id
+  end
+
   private
 
   def valid_file

@@ -49,11 +49,7 @@ class PublicArtifactsController < ActionController::Base
     @artifact = Artifact.active.find_by!(public_id: params[:public_id])
     user = User.find_by(id: session[:user_id])
     @owner = user.present? && user.workspace&.id == @artifact.workspace_id
-    @version = @artifact.published_version || (@artifact.current_version if @owner)
-    if @version.nil? && user.nil? && action_name == "show"
-      session[:return_to] = request.fullpath
-      return redirect_to(new_session_path, alert: "Sign in to open this artifact.")
-    end
+    @version = @artifact.public_version || (@artifact.current_version if @owner)
     raise ActiveRecord::RecordNotFound unless @version
     response.headers["Cache-Control"] = "private, no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
