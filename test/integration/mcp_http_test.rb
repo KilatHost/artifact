@@ -15,6 +15,12 @@ class McpHttpTest < ActionDispatch::IntegrationTest
     id = JSON.parse(result.fetch("content")[0].fetch("text")).fetch("id")
     result = call.call("get_artifact", { id: id })
     assert_equal source, JSON.parse(result.fetch("content")[0].fetch("text")).fetch("content")
+    result = call.call("update_artifact", { id: id, content: source, expected_version: 1, request_id: "revise-sheet" })
+    refute result["isError"]
+    assert_equal 2, JSON.parse(result.fetch("content")[0].fetch("text")).fetch("version")
+    result = call.call("update_artifact", { id: id, content: source, expected_version: 1 })
+    assert result["isError"]
+    assert_equal "version_conflict", JSON.parse(result.fetch("content")[0].fetch("text")).fetch("error")
     result = call.call("create_artifact", { request_id: "bad-sheet", title: "Bad", kind: "sheet", content: '{"kind":"sheet"}' })
     assert result["isError"]
     assert_includes result.fetch("content")[0].fetch("text"), "Content source.tabs is required"

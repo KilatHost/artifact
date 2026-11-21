@@ -1,5 +1,6 @@
 <% markdown = version.kind == "markdown" %>
-<% fields = markdown ? ArtifactEditing.markdown_fields(version.content) : ArtifactEditing.html_fields(version.content) %>
+<% typed = ArtifactTypes::KINDS.include?(version.kind) %>
+<% fields = typed ? [] : (markdown ? ArtifactEditing.markdown_fields(version.content) : ArtifactEditing.html_fields(version.content)) %>
 <% if fields.any? %>
   <div class="edit-modes" data-draft-editor-target="modeControls" hidden>
     <button type="button" class="button-secondary button-sm" data-draft-editor-target="textButton" data-action="draft-editor#showText" aria-controls="draft-text-mode"><%= markdown ? "Formatted" : "Page text" %></button>
@@ -26,11 +27,11 @@
   </div>
 <% end %>
 <div id="draft-source-mode" data-draft-editor-target="sourceSection">
-  <%= form.label :content, markdown ? "Markdown source" : "HTML source", class: "field-label" %>
+  <%= form.label :content, typed ? "JSON source" : (markdown ? "Markdown source" : "HTML source"), class: "field-label" %>
   <%= form.text_area :content, value: version.content, class: "field source-editor", spellcheck: markdown, rows: 16, data: { draft_editor_target: "source", action: "input->draft-editor#sourceChanged" } %>
   <% if markdown && fields.any? %>
     <p class="field-hint" data-draft-editor-target="sourceHint" hidden>Save and reopen the draft to use Formatted after changing the Markdown source.</p>
-  <% elsif !markdown && fields.empty? %>
+  <% elsif !markdown && !typed && fields.empty? %>
     <p class="field-hint">This HTML has no marked text blocks. Edit the source and preview your changes in the sandbox.</p>
   <% end %>
 </div>
