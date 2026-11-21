@@ -37,6 +37,27 @@ class ArtifactEditingFlowTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "typed draft previews report the same validation messages as saves without changing versions" do
+    ArtifactTypes::KINDS.each do |kind|
+      source = typed_source(kind).to_json
+      artifact = create_from_agent(kind, source)
+      edit = { title: "Preview", expected_version: 1, content: source }
+      @browser.patch artifact_path(artifact), params: { preview: "1", artifact: edit }
+      @browser.assert_response :success
+      [ "{", "{}", "" ].each do |invalid|
+        @browser.patch artifact_path(artifact), params: { preview: "1", artifact: edit.merge(content: invalid) }
+        @browser.assert_response :unprocessable_entity
+        assert_equal "text/plain", @browser.response.media_type
+        message = @browser.response.body
+        @browser.patch artifact_path(artifact), params: { artifact: edit.merge(content: invalid) }
+        @browser.assert_response :unprocessable_entity
+        @browser.assert_select "[role='alert']", text: message
+        assert_equal source, artifact.reload.current_version.content
+        assert_equal 1, artifact.versions.count
+      end
+    end
+  end
+
   test "an MCP brief can be edited on the viewer then read and revised by a second agent" do
     source = "# Agent brief\n\nFirst paragraph.\n\n| Metric |\n| --- |\n| 42 |"
     artifact = create_from_agent("markdown", source)

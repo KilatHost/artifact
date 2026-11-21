@@ -167,7 +167,10 @@ class ArtifactsController < ApplicationController
     base = edit_base(data[:expected_version])
     tokens = DesignKit.snapshot_tokens(selected_design_kit(data))
     version = ArtifactVersion.new(title: data[:title], kind: base.kind, content: edit_content(data, base), design_tokens: tokens)
+    version.content = ArtifactTypes.validate!(base.kind, version.content).last if ArtifactTypes::KINDS.include?(base.kind)
     render_preview(version)
+  rescue ArtifactTypes::Invalid => error
+    render plain: "Couldn't save. Content #{error.message}.", status: :unprocessable_entity
   end
 
   def selected_design_kit(data)
