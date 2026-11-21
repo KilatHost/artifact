@@ -125,8 +125,9 @@ class ArtifactSheetFormulas
     when :range
       r1, c1 = coordinates(a)
       r2, c2 = coordinates(b)
-      raise Invalid unless r2 >= r1 && c2 >= c1 && r2 <= @tab["rows"].length && c2 < @tab["columns"].length
-      (r1..r2).map { |r| (c1..c2).map { |col| formula_cell(r, col) } }
+      raise Invalid unless r2 >= r1 && c2 >= c1 && r2 < 1_048_576 && c2 < @tab["columns"].length
+      last_row = [ r2, @tab["rows"].length ].min
+      (r1..last_row).map { |r| (c1..c2).map { |col| formula_cell(r, col) } }
     when :unary then a == "-" ? -number(evaluate(b)) : number(evaluate(b))
     when :binary then binary(a, evaluate(b), evaluate(c))
     when :call then function(a, b)

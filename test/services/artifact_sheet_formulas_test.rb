@@ -26,4 +26,17 @@ class ArtifactSheetFormulasTest < ActiveSupport::TestCase
     assert_equal "#ERROR!", evaluate("=A2+0", rows: [ [ "not a date", nil ] ], columns: columns)
     assert_equal "2026-11-23", ArtifactSheetFormulas.new({ "columns" => columns, "rows" => rows }).cell(1, 0)
   end
+
+  test "aggregate ranges past stored rows ignore missing blank cells" do
+    rows = [ [ 10, nil ], [ 20, nil ] ]
+    { "SUM" => 30, "AVERAGE" => 15, "MIN" => 10, "MAX" => 20, "COUNT" => 2 }.each do |function, expected|
+      assert_equal expected, evaluate("=#{function}(A2:A100)", rows: rows), function
+    end
+    assert_equal(-10, evaluate("=MAX(A2:A100)", rows: [ [ -10, nil ] ]))
+    assert_equal 0, evaluate("=SUM(A99:A1048576)", rows: rows)
+    assert_equal 0, evaluate("=COUNT(A99:A1048576)", rows: rows)
+    assert_equal "#ERROR!", evaluate("=AVERAGE(A99:A100)", rows: rows)
+    assert_equal "#ERROR!", evaluate("=SUM(A5:A2)", rows: rows)
+    assert_equal "#ERROR!", evaluate("=SUM(A2:A1048577)", rows: rows)
+  end
 end
