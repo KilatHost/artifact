@@ -62,4 +62,16 @@ class ArtifactTypedHtmlTest < ActiveSupport::TestCase
       assert ArtifactExports.pdf(item).start_with?("%PDF")
     end
   end
+
+  test "dense slide tables wrap with a content sized font instead of clipping rows" do
+    slide = { "layout" => "table", "title" => "Dense table", "head" => Array.new(6, "Long heading " * 15),
+      "rows" => Array.new(10) { |r| Array.new(6) { |c| "Row #{r} column #{c}: " + "Long cell content " * 10 } } }
+    html = ArtifactRendering.html(version({ "kind" => "slides", "slides" => [ slide ] }))
+    section = Nokogiri::HTML5(html).at_css(".slide-table")
+    assert_equal 11, section.css("tr").size
+    assert_match(/--table-font-size:[3-9](\.5|\.0)?px/, section["style"])
+    assert_includes html, "table-layout:fixed"
+    assert_includes html, "overflow-wrap:anywhere"
+    assert ArtifactExports.pdf(version({ "kind" => "slides", "slides" => [ slide ] })).start_with?("%PDF")
+  end
 end

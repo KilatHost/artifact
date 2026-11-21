@@ -9,7 +9,7 @@ class ArtifactTypedHtml
     when "doc"
       common + "main.typed{max-width:180mm;min-height:267mm}@page{size:A4}"
     when "slides"
-      common + "main.typed{max-width:none;padding:0}.slide{box-sizing:border-box;aspect-ratio:16/9;padding:5%;margin:20px auto;max-width:1200px;border:1px solid #ddd;overflow:hidden}.big-number{font-size:5em}@page{size:320mm 180mm;margin:0}@media print{.slide{width:320mm;height:180mm;max-width:none;margin:0;border:0;break-after:page}.slide:last-child{break-after:auto}}"
+      common + "main.typed{max-width:none;padding:0}.slide{box-sizing:border-box;aspect-ratio:16/9;padding:5%;margin:20px auto;max-width:1200px;border:1px solid #ddd;overflow:hidden}.slide-table{padding:30px}.slide-table h1{font-size:24px;line-height:1.2;margin:0 0 16px}.slide-table table{table-layout:fixed;font-size:var(--table-font-size);line-height:1.15}.slide-table td,.slide-table th{padding:3px;overflow-wrap:anywhere;word-break:break-word;white-space:pre-wrap}.big-number{font-size:5em}@page{size:320mm 180mm;margin:0}@media print{.slide{width:320mm;height:180mm;max-width:none;margin:0;border:0;break-after:page}.slide:last-child{break-after:auto}}"
     else common + ".tab{margin-bottom:3em}thead{display:table-header-group}"
     end
   end
@@ -30,12 +30,29 @@ class ArtifactTypedHtml
         "<section class=\"tab\"><h2>#{escape(tab['name'])}</h2>#{table(tab['columns'].pluck('title'), rows, tab['columns'].pluck('format'))}</section>"
       end.join
     when "slides"
-      @source["slides"].map { |slide| "<section class=\"slide\">#{slide_html(slide)}</section>" }.join
+      @source["slides"].map do |slide|
+        attributes = slide["layout"] == "table" ? "slide slide-table\" style=\"--table-font-size:#{slide_table_font_size(slide)}px" : "slide"
+        "<section class=\"#{attributes}\">#{slide_html(slide)}</section>"
+      end.join
     end
     "<main class=\"typed\">#{content}</main>"
   end
 
   private
+
+  def slide_table_font_size(slide)
+    rows = [ slide["head"] ] + slide["rows"]
+    cell_width = 1120.0 / slide["head"].length - 8
+    (6..24).to_a.reverse_each do |half_points|
+      size = half_points / 2.0
+      characters = [ (cell_width / size).floor, 1 ].max
+      lines = rows.sum do |row|
+        row.map { |value| value.to_s.split("\n", -1).sum { |line| [ (line.length.to_f / characters).ceil, 1 ].max } }.max || 1
+      end
+      return size if lines * size * 1.15 + rows.length * 7 <= 500
+    end
+    3
+  end
 
   def escape(value)
     ERB::Util.html_escape(value.to_s)
