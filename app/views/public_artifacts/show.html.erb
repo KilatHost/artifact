@@ -27,7 +27,7 @@
     </div>
     <div class="viewer-bar-actions">
       <% if @owner && !@editing && ArtifactEditing.editable?(@version) %>
-        <%= link_to "Edit", public_artifact_path(@artifact.public_id, edit: "1"), class: "viewer-action viewer-edit-action" %>
+        <%= link_to "Edit", public_artifact_path(@artifact.public_id, edit: "1"), class: "viewer-action viewer-edit-action", data: { turbo: false } %>
       <% end %>
       <% unless @version.kind == "file" %>
         <details class="menu viewer-download">

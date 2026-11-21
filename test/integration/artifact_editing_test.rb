@@ -19,6 +19,7 @@ class ArtifactEditingFlowTest < ActionDispatch::IntegrationTest
 
     @browser.get viewer_path
     @browser.assert_select "a", "Edit"
+    @browser.assert_select "a.viewer-edit-action[data-turbo=false]", "Edit"
     @browser.assert_select "form[data-controller='draft-editor']", count: 0
     @browser.get public_artifact_path(artifact.public_id, edit: "1")
     @browser.assert_select "input#markdown-line-0[value='Agent brief']"
