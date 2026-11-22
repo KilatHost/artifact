@@ -4,6 +4,37 @@ This guide covers the current single-host Docker Compose deployment, plus requir
 
 > **Release status:** every change runs a Docker Compose check on Linux in CI (build, sign-up, publish, PDF inside the container, file round trip, refused oversized upload, restart, the backup and restore commands below, purge). The image has also run on ARM64 behind Caddy with Claude connected over OAuth. S3 storage and load have not been tested. Complete the acceptance checklist before using real customer data.
 
+## Quick deploy summary
+
+1. Use a Linux x86_64/ARM64 host with Docker Engine, Compose v2 and persistent disk.
+2. [Clone the release and configure](#install) independent signing/database secrets in a protected `.env`.
+3. Pull the release image, start Compose and check `/up` using the commands below. Create the first account **before** public exposure.
+4. Configure [HTTPS and proxy](#https-and-proxy) for remote access, then verify the [acceptance checklist](#acceptance-checklist).
+5. Schedule matched database/file [backups](#back-up) and practice [restore](#restore) before storing important data.
+
+Use the exact commands below. See the [configuration reference](docs/configuration.md) for defaults and forwarding rules, and [troubleshooting](docs/troubleshooting.md) for image authorization, host validation, registration and PDF errors.
+
+## Contents
+
+- [Architecture at a glance](#architecture-at-a-glance)
+- [1. Prepare and start](#1-prepare-and-start): [requirements](#requirements), [install](#install), [HTTPS and proxy](#https-and-proxy)
+- [2. Storage, recovery and upgrades](#2-storage-recovery-and-upgrades): [local storage](#default-storage), [S3](#s3-compatible-storage), [back up](#back-up), [restore](#restore), [upgrade and rollback](#upgrade-and-rollback)
+- [3. Acceptance, monitoring and cloud limits](#3-acceptance-monitoring-and-cloud-limits): [acceptance](#acceptance-checklist), [operations](#operations), [managed cloud readiness](#managed-cloud-readiness), [cost model](#cost-model)
+
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+    Client[Browser / MCP client] --> Proxy[HTTPS reverse proxy]
+    Proxy --> Web[web: Thruster / Rails]
+    Web --> DB[(db: PostgreSQL 17)]
+    Web --> Storage[(artifact_storage: uploaded files)]
+    Jobs[jobs: hourly archive purge] --> DB
+    Jobs --> Storage
+```
+
+The proxy is supplied by the operator, not Compose. Only web's port is published, on host loopback. Rails prepares the database on startup; jobs runs the scheduled purge against the same database and storage. PostgreSQL data lives in its own `postgres_data` volume. PDF export launches Chromium inside web; no separate rendering service or Redis is required. S3 is an optional, unverified alternative to local file storage requiring additional runtime configuration.
+
 ## 1. Prepare and start
 
 ### Requirements

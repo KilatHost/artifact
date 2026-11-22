@@ -23,7 +23,32 @@
 
 **Open source, self-hostable, Apache-2.0.** Create and edit in your browser or through MCP from Claude and other agents. The same application is intended to power Kilat Cloud; a managed service is not available from this repository yet.
 
-> **Status:** early release. CI runs the test suite and a Docker Compose check on Linux (sign-up, publish, PDF, file round trip, restart, backup and restore). The claude.ai connector, MCP Inspector, MCPorter and Claude Code have connected over OAuth ([what each verified](#oauth)); Codex CLI, ChatGPT, Gemini and Manus have not been tested. S3 storage is not yet verified.
+> **Status:** early release. CI runs the test suite and a Docker Compose check on Linux (sign-up, publish, PDF, file round trip, restart, backup and restore). The claude.ai connector, MCP Inspector, MCPorter and Claude Code have connected over OAuth ([what each verified](docs/mcp.md#oauth)); Codex CLI, ChatGPT, Gemini and Manus have not been tested. S3 storage is not yet verified.
+
+## Screenshots
+
+Real local app screenshots at 1440 × 900, using fictional sample data. Click a thumbnail for the full image.
+
+![Artifact workspace with Markdown, HTML, a sheet and an uploaded file](docs/screenshots/dashboard.png)
+
+| Write and review | Share and connect |
+| --- | --- |
+| [![Markdown editor](docs/screenshots/markdown-editor.png)](docs/screenshots/markdown-editor.png) | [![Rendered HTML report](docs/screenshots/html-report.png)](docs/screenshots/html-report.png) |
+| [![Version history](docs/screenshots/version-history.png)](docs/screenshots/version-history.png) | [![Public published page](docs/screenshots/public-page.png)](docs/screenshots/public-page.png) |
+
+[Design kits](docs/screenshots/design-kit.png) · [Connections / MCP](docs/screenshots/connections-mcp.png) · [Dark workspace](docs/screenshots/dashboard-dark.png) · [Dark connections](docs/screenshots/connections-dark.png)
+
+## Contents
+
+- [What it does](#what-it-does) and [limitations](#what-it-does-not-do)
+- [Quick start](#quick-start)
+- [Publishing](#how-publishing-works)
+- [Connect an agent](#connect-an-agent)
+- [Design kits](#design-kits)
+- [Development](#stack-and-development)
+- [Security and operations](#security-and-operations)
+- [License](#license)
+- [All documentation](docs/README.md)
 
 ## What it does
 
@@ -57,6 +82,8 @@ The JSON schemas in `config/artifact_types/{doc,sheet,slides}.json` are the port
 - Generic file artifacts are stored and downloaded, not converted into editable documents. Their link shows a download page; Markdown, HTML and rich-text links render the page.
 
 ## Quick start
+
+**Clone → configure two secrets → start → create your first account.** Full production instructions: [Deployment](deploy.md); settings: [Configuration](docs/configuration.md); problems: [Troubleshooting](docs/troubleshooting.md).
 
 Use a Linux host (x86_64 or ARM64) with Git, Docker Engine and Docker Compose v2. No host Ruby or Node installation is required.
 
@@ -97,144 +124,17 @@ Unpublishing disables the public endpoint, but cannot recall copies already down
 
 ## Connect an agent
 
-Endpoint: `https://your-host.example/mcp`.
+Point a compatible Streamable HTTP client at `https://your-host.example/mcp` and authorize with OAuth, or create a revocable personal token in **Connections**. No stdio endpoint is provided. Scopes are independent: `read`, `write`, and opt-in `publish`. Ask the owner before publishing.
 
-Transport: **stateless MCP Streamable HTTP**, with JSON responses. No stdio endpoint is provided.
-
-### OAuth
-
-For compatible remote MCP clients, enter the endpoint URL and complete browser authorization. The server exposes:
-
-| Endpoint | Purpose |
-| --- | --- |
-| `/.well-known/oauth-authorization-server` | Authorization-server discovery |
-| `/.well-known/oauth-protected-resource/mcp` | Protected-resource discovery |
-| `/oauth/register` | Dynamic public-client registration |
-| `/oauth/authorize` | Owner consent |
-| `/oauth/token` | Authorization-code exchange and refresh |
-| `/oauth/revoke` | Token revocation |
-
-Authorization codes require S256 PKCE. Registered redirects must use HTTPS, except supported HTTP loopback redirects. Client registration can request a space-separated `scope`; omitted scope defaults to `read write`. Revoke grants from **Connections**.
-
-Tested over OAuth (November 2026):
-
-| Client | Verified |
-| --- | --- |
-| Claude, custom connector on claude.ai | Sign-in, create, read, update, publish, Markdown briefs and interactive HTML decks |
-| MCP Inspector 2.16.0 | Sign-in and create a private artifact |
-| MCPorter 0.17.1 | Sign-in; read an owner's browser edit and revise it at the same URL; stale writes return `version_conflict`; revoking the connection forces new consent |
-| Claude Code 2.1.330 (remote HTTP) | Sign-in and connection only; tool calls from the model were not exercised |
-
-Inspector, MCPorter and Claude Code were tested against a local HTTPS endpoint. Not yet tested: Codex CLI, ChatGPT, Gemini and Manus; their plans and connector capabilities may differ.
-
-### Personal tokens
-
-Open **Connections**, name the connection, select permissions and create a token. Copy it once; only its SHA-256 digest is stored. Configure your client's bearer-header support:
-
-```text
-Authorization: Bearer <your-token>
-```
-
-Do not put secrets in artifact content, URLs, screenshots or source control.
-
-| Scope | Allows |
-| --- | --- |
-| `read` | List/read artifacts, history and design kits |
-| `write` | Create/revise/restore drafts and create/update design kits |
-| `publish` | Publish or unpublish specified artifacts |
-
-Scopes are independent. `write` does not include `publish`, and does not implicitly grant `read`.
-
-### v1 MCP contract
-
-OAuth defaults and the personal-token form select `read write`; `publish` is always opt-in. Scopes remain independent. Each connection acts within its owner's workspace.
-
-| Tool | Scope | Important inputs |
-| --- | --- | --- |
-| `list_artifacts` | `read` | Optional `offset`; 100 results per page |
-| `get_artifact` | `read` | Artifact `id`; optional `version` number |
-| `create_artifact` | `write` | `request_id`, `title`, `kind`, `content`; optional `design_kit_id` |
-| `update_artifact` | `write` | `id`, `content`, `expected_version`; optional `title`, `kind`, `request_id` |
-| `artifact_history` | `read` | `id`; optional `offset`; 100 results per page |
-| `restore_artifact` | `write` | `id`, `version`, `expected_version`; optional `request_id` |
-| `delete_artifact` | `write` | `id`; restorable in the web app for 7 days |
-| `list_design_kits` | `read` | Optional `offset`; 100 results per page |
-| `create_design_kit` | `write` | `name`, `tokens` |
-| `update_design_kit` | `write` | Kit `id`, `name`, `tokens` |
-| `publish_artifact` | `publish` | `id` |
-| `unpublish_artifact` | `publish` | `id` |
-
-`create_artifact` accepts `markdown` (prose) or `html` (designed or interactive pages). Artifact summaries contain `id,title,kind,design_kit_id,updated_at,version,public,public_version,url,edit_url`. The ID and URL stay stable across revisions. `public_version` is the pin number or null (private or following latest). Lists return arrays, at most 100 items per offset page; history omits content. Get adds `content,latest_version,author,connection,file` (file metadata or null). Tool outputs are JSON encoded in MCP text content.
-
-Get/history expose `author` as a display name and `connection: {type,id,name}` or null for legacy rows. Types are `user`, `api_token`, `oauth_application`; MCP names come from the authenticated token/application, browser names from the user email. Names are captured at write time; revoked connections remain identifiable. Caller-supplied authors are not accepted.
-
-Create requires `request_id` (1–128 characters); update/restore accept it optionally. Reuse it only for identical retries: the workspace-wide receipt includes tool name, authenticated connection type/ID (or null), and inputs. A retry returns the original result without a new version, even after later edits. Different inputs, tools or connections yield `idempotency_mismatch`. Receipts have no expiry; use unique IDs across agents. Without a request ID, revise retries are not idempotent.
-
-Update and restore require `expected_version`, checked under the artifact lock. **Stale-write recovery:** (1) call `get_artifact`; (2) reapply your intended change to its latest content, preserving other edits; (3) retry with `expected_version` set to that version and a new request ID if inputs changed. Do not blindly retry stale content.
-
-Tool errors have `isError:true` and JSON text `{error,message,...}`. Codes: `version_conflict` (includes `current_version` and `recovery` hint), `not_found`, `permission_denied` (includes `required_scope`), `invalid_request`, `idempotency_mismatch`. Invalid/revoked authentication instead returns HTTP 401 `{error:"invalid_token"}` and discovery challenge. Protocol errors remain JSON-RPC errors.
-
-`KILAT_PUBLIC_LINKS=latest` (default/self-host) follows every revision. `pinned` (cloud) pins on publication; revisions never advance a pin. Existing null-pin publications continue following latest. The owner can choose **Update public link** on the artifact page. Calling `publish_artifact` again advances a pin too: opt-in `publish` scope is explicit owner delegation for this action, not just initial publication. Ask the owner before publishing/advancing. Unpublish clears the pin and disables anonymous page/frame/export/file access; public responses use no-store caching.
-
-MCP exposes file metadata, not binary upload/download tools. Browser uploads and authorized HTTP downloads handle files.
-
-#### Launch template: editable HTML report
-
-Give the user the artifact's `url` so they can use **Edit → Page text** in the viewer. Mark only static, text-only elements, using a unique name that starts with a letter and contains at most 64 letters, digits, hyphens or underscores. Preserve markers when an agent revises the report.
-
-```html
-<main>
-  <h1 data-kilat-editable="report-title">Quarterly report</h1>
-  <p data-kilat-editable="report-summary">Summarize the key finding here.</p>
-  <figure>
-    <div id="chart"></div>
-    <figcaption data-kilat-editable="chart-caption">Comparison with the prior quarter.</figcaption>
-  </figure>
-</main>
-```
-
-Page text editing changes only the marked elements' text, not their layout or JavaScript. Use **Source** and **Preview draft** for arbitrary HTML. Markdown has a **Formatted** mode for simple text and a **Source** mode for the full document.
+See [Connecting agents](docs/mcp.md) for OAuth discovery, tested clients, bearer tokens, the full v1 tool contract, retry/error handling and an editable HTML launch template.
 
 ## Design kits
 
-Agents should list available kits, choose one and supply its ID when creating an artifact. A kit uses this token shape:
-
-```json
-{
-  "font": "system-ui",
-  "background": "#ffffff",
-  "foreground": "#171717",
-  "accent": "#171717"
-}
-```
-
-Fonts are `system-ui`, `serif` or `monospace`; colors must be six-digit hex values. Existing versions retain their captured kit values when a kit changes. A restored version retains its original styling snapshot.
+Share workspace font and color tokens with agents. Each saved version captures its kit, so later kit changes do not restyle existing versions. See [Design kits](docs/design-kits.md) for token values and usage.
 
 ## Stack and development
 
-Ruby **3.3.13**, Rails **8.1**, PostgreSQL, Hotwire/Stimulus, Trix, native CSS, the MCP Ruby SDK, Doorkeeper, Active Storage and Ferrum/Chromium. No Node build, Redis or vector database is required. Storage can use a local volume or S3-compatible object storage.
-
-With Ruby 3.3.13 and a disposable PostgreSQL database available:
-
-```sh
-bundle install
-export DATABASE_URL=postgresql://localhost/kilat_artifact_development
-bin/rails db:prepare
-bin/rails server
-```
-
-PDF export also needs Chromium; set `BROWSER_PATH` when it is not discoverable. Never point test commands at a development or production database:
-
-```sh
-export DATABASE_URL=postgresql://localhost/kilat_artifact_test
-RAILS_ENV=test bin/rails db:prepare
-bin/rails test
-bundle exec rubocop
-bundle exec brakeman --no-pager
-bin/rails zeitwerk:check
-```
-
-The production image omits development/test gems. Run lint, security scans and tests in a development environment, not by assuming those tools exist in that image. See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request, and [RELEASING.md](RELEASING.md) for how releases are cut.
+Ruby 3.3.13, Rails 8.1 and PostgreSQL with Hotwire/Stimulus; no Node build or Redis required. See [Development](docs/development.md) for the full stack, local setup, tests, lint and Compose smoke checks, [Contributing](CONTRIBUTING.md) for contribution guidance, and [Releasing](RELEASING.md) for release steps.
 
 ## Security and operations
 
